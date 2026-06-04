@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>遊戲選單大廳</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e1e2f, #2a2a40);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+        }
+
+        .menu-container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 3rem;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 400px;
+            width: 90%;
+        }
+
+        h1 {
+            margin-bottom: 2rem;
+            font-size: 2rem;
+            letter-spacing: 2px;
+            text-shadow: 0 2px 10px rgba(0, 255, 204, 0.3);
+        }
+
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .btn {
+            display: block;
+            padding: 1rem 2rem;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        /* 3D 迷宮按鈕樣式 */
+        .btn-maze {
+            background: linear-gradient(45deg, #ff416c, #ff4b2b);
+        }
+
+        .btn-maze:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(255, 65, 108, 0.4);
+        }
+
+        /* 色差遊戲按鈕樣式 */
+        .btn-color {
+            background: linear-gradient(45deg, #00b4db, #0083b0);
+        }
+
+        .btn-color:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 180, 219, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="menu-container">
+        <h1>遊戲大廳</h1>
+        <div class="button-group">
+            <a href="3Dmaze.html" class="btn btn-maze">闖關 3D 迷宮</a>
+            
+            <a href="DifferentColor.html" class="btn btn-color">核心色網挑戰</a>
+        </div>
+    </div>
+
+</body>
+</html>

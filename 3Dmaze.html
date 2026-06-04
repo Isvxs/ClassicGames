@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Windows 95 3D Maze</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            /* 防止手機上長按彈出選單或選取文字 */
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            cursor: crosshair;
+        }
+        #canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            image-rendering: pixelated; /* 完美還原 90 年代低解析度顆粒感 */
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="canvas" width="320" height="240"></canvas>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+// --- 迷宮地圖配置 (0:空地, 1:紅磚牆, 2:藍條紋牆, 3:太極, 4:老鼠) ---
+const map = [
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    [1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
+    [1,0,1,0,1,0,1,1,1,0,1,0,1,0,1],
+    [1,0,1,0,0,0,1,3,1,0,0,0,1,0,1],
+    [1,0,1,1,1,1,1,0,1,1,1,1,1,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,1,1,0,1,1,1,0,1,1,1,0,1,1,1],
+    [1,0,0,0,1,4,0,0,0,4,1,0,0,0,1],
+    [1,1,1,0,1,1,1,0,1,1,1,0,1,1,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,1,1,1,1,1,0,1,1,1,1,1,0,1],
+    [1,0,1,0,0,0,1,0,1,0,0,0,1,0,1],
+    [1,0,1,0,1,0,1,1,1,0,1,0,1,0,1],
+    [1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+];
+
+// --- 玩家物理狀態 ---
+let posX = 1.5, posY = 1.5; 
+let dirX = 1, dirY = 0;     
+let planeX = 0, planeY = 0.66; 
+let currentAngle = Math.atan2(dirY, dirX);
+
+// 速度參數
+const MOVE_SPEED = 0.05;
+const ROT_SPEED = 0.04;
+
+// 天地翻轉狀態
+let isUpsideDown = false;
+
+// --- 統一控制狀態 (相容鍵盤與觸控) ---
+const controls = {
+    forward: false,
+    backward: false,
+    left: false,
+    right: false
+};
+
+// --- 1. 鍵盤事件監聽 ---
+window.addEventListener('keydown', (e) => {
+    if (['w', 'W', 'ArrowUp'].includes(e.key)) controls.forward = true;
+    if (['s', 'S', 'ArrowDown'].includes(e.key)) controls.backward = true;
+    if (['a', 'A', 'ArrowLeft'].includes(e.key)) controls.left = true;
+    if (['d', 'D', 'ArrowRight'].includes(e.key)) controls.right = true;
+});
+
+window.addEventListener('keyup', (e) => {
+    if (['w', 'W', 'ArrowUp'].includes(e.key)) controls.forward = false;
+    if (['s', 'S', 'ArrowDown'].includes(e.key)) controls.backward = false;
+    if (['a', 'A', 'ArrowLeft'].includes(e.key)) controls.left = false;
+    if (['d', 'D', 'ArrowRight'].includes(e.key)) controls.right = false;
+});
+
+// --- 2. 行動裝置觸控事件監聽 (支援多點觸控) ---
+function handleTouches(e) {
+    e.preventDefault(); // 防止畫面滾動或縮放
+    
+    // 重設狀態
+    controls.forward = false;
+    controls.backward = false;
+    controls.left = false;
+    controls.right = false;
+
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+
+    // 遍歷當前所有手指的觸控點
+    for (let i = 0; i < e.touches.length; i++) {
+        const touch = e.touches[i];
+        const x = touch.clientX;
+        const y = touch.clientY;
+
+        // 核心十字判定演算法
+        // 計算觸控點相對於螢幕中心的相對座標
+        const dx = x - (screenWidth / 2);
+        const dy = y - (screenHeight / 2);
+
+        // 比較水平距離與垂直距離，決定觸發哪個方向
+        if (Math.abs(dx) > Math.abs(dy)) {
+            if (dx > 0) controls.right = true;
+            else        controls.left = true;
+        } else {
+            if (dy > 0) controls.backward = true;
+            else        controls.forward = true;
+        }
+    }
+}
+
+canvas.addEventListener('touchstart', handleTouches, { passive: false });
+canvas.addEventListener('touchmove', handleTouches, { passive: false });
+canvas.addEventListener('touchend', (e) => {
+    if (e.touches.length === 0) {
+        controls.forward = false;
+        controls.backward = false;
+        controls.left = false;
+        controls.right = false;
+    } else {
+        handleTouches(e);
+    }
+}, { passive: false });
+
+
+// --- 紋理生成器 ---
+const texSize = 64;
+const textures = {};
+
+function createTextures() {
+    // 1. 經典紅磚牆
+    const bCanvas = document.createElement('canvas'); bCanvas.width = texSize; bCanvas.height = texSize;
+    const bCtx = bCanvas.getContext('2d');
+    bCtx.fillStyle = '#990000'; bCtx.fillRect(0, 0, texSize, texSize);
+    bCtx.fillStyle = '#dfdfdf';
+    for(let i=0; i<texSize; i+=8) bCtx.fillRect(0, i, texSize, 1);
+    for(let i=0; i<texSize; i+=8) {
+        let offset = (i / 8) % 2 * 8;
+        for(let j=offset; j<texSize+offset; j+=16) bCtx.fillRect(j % texSize, i, 1, 8);
+    }
+    textures[1] = bCtx.getImageData(0, 0, texSize, texSize);
+
+    // 2. 藍色條紋牆
+    const blCanvas = document.createElement('canvas'); blCanvas.width = texSize; blCanvas.height = texSize;
+    const blCtx = blCanvas.getContext('2d');
+    blCtx.fillStyle = '#00007f'; blCtx.fillRect(0,0,texSize,texSize);
+    blCtx.fillStyle = '#0000ff';
+    for(let i=0; i<texSize; i+=16) blCtx.fillRect(i, 0, 8, texSize);
+    textures[2] = blCtx.getImageData(0, 0, texSize, texSize);
+
+    // 3. 太極圖牆面
+    const tCanvas = document.createElement('canvas'); tCanvas.width = texSize; tCanvas.height = texSize;
+    const tCtx = tCanvas.getContext('2d');
+    tCtx.fillStyle = '#fff'; tCtx.fillRect(0,0,texSize,texSize);
+    tCtx.fillStyle = '#000'; tCtx.beginPath(); tCtx.arc(32,32,28,0,Math.PI*2); tCtx.stroke();
+    tCtx.beginPath(); tCtx.arc(32,32,28,Math.PI/2, Math.PI*1.5); tCtx.fill();
+    tCtx.beginPath(); tCtx.arc(32,18,14,0,Math.PI*2); tCtx.fill();
+    tCtx.fillStyle = '#fff'; tCtx.beginPath(); tCtx.arc(32,46,14,0,Math.PI*2); tCtx.fill();
+    tCtx.fillStyle = '#000'; tCtx.beginPath(); tCtx.arc(32,46,4,0,Math.PI*2); tCtx.fill();
+    tCtx.fillStyle = '#fff'; tCtx.beginPath(); tCtx.arc(32,18,4,0,Math.PI*2); tCtx.fill();
+    textures[3] = tCtx.getImageData(0, 0, texSize, texSize);
+
+    // 4. 經典老鼠
+    const mCanvas = document.createElement('canvas'); mCanvas.width = texSize; mCanvas.height = texSize;
+    const mCtx = mCanvas.getContext('2d');
+    mCtx.fillStyle = '#555'; mCtx.fillRect(0,0,texSize,texSize);
+    mCtx.fillStyle = '#d8d8d8'; mCtx.fillRect(16, 30, 32, 16); mCtx.fillRect(40, 24, 12, 12);
+    mCtx.fillStyle = '#ffb6c1'; mCtx.fillRect(42, 20, 4, 4); mCtx.fillRect(52, 28, 2, 2);
+    mCtx.fillStyle = '#000'; mCtx.fillRect(48, 26, 2, 2);
+    textures[4] = mCtx.getImageData(0, 0, texSize, texSize);
+}
+createTextures();
+
+function getGrid(x, y) {
+    if (x < 0 || x >= 15 || y < 0 || y >= 15) return 1;
+    return map[Math.floor(y)][Math.floor(x)];
+}
+
+// --- 更新位置與碰撞邏輯 ---
+function update() {
+    // 踩到太極觸發翻轉
+    if (Math.floor(posX) === 7 && Math.floor(posY) === 3) {
+        isUpsideDown = true;
+    } else if (Math.floor(posX) === 1 && Math.floor(posY) === 1) {
+        isUpsideDown = false; 
+    }
+
+    let moveX = 0;
+    let moveY = 0;
+
+    if (controls.forward) { moveX += dirX; moveY += dirY; }
+    if (controls.backward) { moveX -= dirX; moveY -= dirY; }
+
+    if (moveX !== 0 || moveY !== 0) {
+        let nextX = posX + moveX * MOVE_SPEED;
+        let nextY = posY + moveY * MOVE_SPEED;
+        // 碰撞緩衝半徑
+        if (getGrid(nextX + Math.sign(moveX)*0.2, posY) === 0) posX = nextX;
+        if (getGrid(posX, nextY + Math.sign(moveY)*0.2) === 0) posY = nextY;
+    }
+
+    let rot = 0;
+    if (controls.left) rot -= ROT_SPEED;
+    if (controls.right) rot += ROT_SPEED;
+
+    if (rot !== 0) {
+        currentAngle += rot;
+        dirX = Math.cos(currentAngle);
+        dirY = Math.sin(currentAngle);
+        planeX = -dirY * 0.66;
+        planeY = dirX * 0.66;
+    }
+}
+
+// --- 渲染引擎 ---
+function render() {
+    const w = canvas.width;
+    const h = canvas.height;
+    const imgData = ctx.createImageData(w, h);
+    const buffer = new Uint32Array(imgData.data.buffer);
+
+    const topColor = isUpsideDown ? 0xFF000000 : 0xFFFF0000;
+    const bottomColor = isUpsideDown ? 0xFFFF0000 : 0xFF000000;
+
+    for(let y=0; y<h/2; y++) {
+        for(let x=0; x<w; x++) {
+            buffer[y * w + x] = topColor;
+            buffer[(h - 1 - y) * w + x] = bottomColor;
+        }
+    }
+
+    for (let x = 0; x < w; x++) {
+        let cameraX = 2 * x / w - 1;
+        let rayDirX = dirX + planeX * cameraX;
+        let rayDirY = dirY + planeY * cameraX;
+
+        let mapX = Math.floor(posX);
+        let mapY = Math.floor(posY);
+
+        let sideDistX, sideDistY;
+        let deltaDistX = (rayDirX === 0) ? Infinity : Math.abs(1 / rayDirX);
+        let deltaDistY = (rayDirY === 0) ? Infinity : Math.abs(1 / rayDirY);
+        let perpWallDist;
+
+        let stepX, stepY;
+        let hit = 0, side, texNum = 1;
+
+        if (rayDirX < 0) { stepX = -1; sideDistX = (posX - mapX) * deltaDistX; }
+        else             { stepX = 1; sideDistX = (mapX + 1.0 - posX) * deltaDistX; }
+        if (rayDirY < 0) { stepY = -1; sideDistY = (posY - mapY) * deltaDistY; }
+        else             { stepY = 1; sideDistY = (mapY + 1.0 - posY) * deltaDistY; }
+
+        while (hit === 0) {
+            if (sideDistX < sideDistY) { sideDistX += deltaDistX; mapX += stepX; side = 0; }
+            else                       { sideDistY += deltaDistY; mapY += stepY; side = 1; }
+            if (getGrid(mapX, mapY) > 0) { hit = 1; texNum = getGrid(mapX, mapY); }
+        }
+
+        if (side === 0) perpWallDist = (sideDistX - deltaDistX);
+        else           perpWallDist = (sideDistY - deltaDistY);
+
+        let lineHeight = Math.floor(h / perpWallDist);
+        let drawStart = Math.max(0, -lineHeight / 2 + h / 2);
+        let drawEnd = Math.min(h - 1, lineHeight / 2 + h / 2);
+
+        let wallX = (side === 0) ? posY + perpWallDist * rayDirY : posX + perpWallDist * rayDirX;
+        wallX -= Math.floor(wallX);
+
+        let texX = Math.floor(wallX * texSize);
+        if (side === 0 && rayDirX > 0) texX = texSize - texX - 1;
+        if (side === 1 && rayDirY < 0) texX = texSize - texX - 1;
+
+        const texture = textures[texNum] ? textures[texNum].data : textures[1].data;
+
+        for (let y = Math.floor(drawStart); y < Math.floor(drawEnd); y++) {
+            let d = Math.floor(y * 256 - h * 128 + lineHeight * 128);
+            let texY = Math.floor(((d * texSize) / lineHeight) / 256);
+            texY = Math.max(0, Math.min(texSize - 1, texY));
+
+            let texPos = (texY * texSize + texX) * 4;
+            let r = texture[texPos];
+            let g = texture[texPos + 1];
+            let b = texture[texPos + 2];
+
+            if (side === 1) { r >>= 1; g >>= 1; b >>= 1; }
+
+            buffer[y * w + x] = (255 << 24) | (b << 16) | (g << 8) | r;
+        }
+    }
+
+    ctx.putImageData(imgData, 0, 0);
+}
+
+// 調整畫布尺寸以適應行動端視窗變化
+function resize() {
+    // 保持 320x240 的內部渲染比例，由 CSS 拉伸，以確保穩定的像素鋸齒感
+    canvas.width = 320;
+    canvas.height = 240;
+}
+window.addEventListener('resize', resize);
+
+function loop() {
+    update();
+    render();
+    requestAnimationFrame(loop);
+}
+
+resize();
+loop();
+</script>
+</body>
+</html>

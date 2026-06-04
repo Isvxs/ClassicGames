@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Match Pro - Precision Edition</title>
+    <style>
+        :root {
+            --ios-bg: #f2f2f7;
+            --ios-card: rgba(255, 255, 255, 0.8);
+            --ios-label: #000000;
+            --ios-secondary-label: #8e8e93;
+            --ios-border: rgba(0, 0, 0, 0.08);
+            --ios-primary: #007aff;
+            --ios-success: #34c759;
+            --ios-warning: #ff9500;
+            --ios-error: #ff3b30;
+            
+            --spring-easing: cubic-bezier(0.25, 1, 0.5, 1);
+            --smooth-duration: 0.5s;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --ios-bg: #1c1c1e;
+                --ios-card: rgba(28, 28, 30, 0.85);
+                --ios-label: #ffffff;
+                --ios-secondary-label: #aeaeae;
+                --ios-border: rgba(255, 255, 255, 0.1);
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: var(--ios-bg);
+            color: var(--ios-label);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 400px;
+            background: var(--ios-card);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border-radius: 38px;
+            border: 1px solid var(--ios-border);
+            padding: 24px;
+            box-shadow: 0 14px 40px rgba(0,0,0,0.06);
+            animation: app-intro 0.8s var(--spring-easing);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        header h1 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        header p {
+            font-size: 0.85rem;
+            color: var(--ios-secondary-label);
+            margin-top: 4px;
+        }
+
+        .stage {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            background: rgba(0,0,0,0.03);
+            padding: 10px;
+            border-radius: 24px;
+            margin-bottom: 20px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .stage { background: rgba(255,255,255,0.03); }
+        }
+
+        .color-pane {
+            height: 140px;
+            border-radius: 18px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 10px;
+            transition: transform 0.6s var(--spring-easing);
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
+        }
+
+        .color-pane.reveal {
+            transform: scale(1.03);
+        }
+
+        .pane-info {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 6px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #000;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* 調色盤區域 */
+        .picker-section {
+            background: rgba(0,0,0,0.02);
+            border-radius: 28px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid var(--ios-border);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .picker-section { background: rgba(255,255,255,0.02); }
+        }
+
+        /* 修正漸層色相環：明確指定 conic-gradient 從正上方開始 (from 0deg) */
+        .color-wheel-wrapper {
+            position: relative;
+            width: 180px;
+            height: 180px;
+            cursor: crosshair;
+        }
+
+        .color-wheel {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: conic-gradient(from 0deg, red, yellow, lime, cyan, blue, magenta, red);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+
+        /* 白色向內漸變層，優化白光飽和度模型 */
+        .color-wheel::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            border-radius: 50%;
+            background: radial-gradient(circle, #fff 0%, rgba(255,255,255,0) 85%);
+        }
+
+        .wheel-handle {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: #ffffff;
+            border-radius: 50%;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.3), inset 0 0 0 1px rgba(0,0,0,0.1);
+            top: 50%; left: 50%;
+            margin-top: -12px; margin-left: -12px;
+            pointer-events: none;
+            transition: transform 0.1s var(--spring-easing);
+            z-index: 10;
+        }
+
+        .slider-container {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .ios-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            outline: none;
+            background: linear-gradient(to right, #000, #fff);
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .ios-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #ffffff;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        .ios-slider::-webkit-slider-thumb:active {
+            transform: scale(1.15);
+        }
+
+        .meta-display {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--ios-secondary-label);
+            font-variant-numeric: tabular-nums;
+            border-top: 1px solid var(--ios-border);
+            padding-top: 12px;
+        }
+
+        .ios-btn {
+            width: 100%;
+            background: var(--ios-primary);
+            color: #ffffff;
+            border: none;
+            padding: 16px;
+            border-radius: 16px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.4s var(--spring-easing);
+            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.15);
+        }
+
+        .ios-btn:active {
+            transform: scale(0.97);
+            opacity: 0.85;
+        }
+
+        .ios-btn.next-state {
+            background: var(--ios-label);
+            color: var(--ios-bg);
+            box-shadow: none;
+        }
+
+        .result-panel {
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            transition: max-height 0.6s var(--spring-easing), opacity 0.4s ease, margin-top 0.4s ease;
+            margin-top: 0;
+            background: rgba(0,0,0,0.02);
+            border-radius: 20px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .result-panel { background: rgba(255,255,255,0.02); }
+        }
+
+        .result-panel.show {
+            max-height: 100px;
+            opacity: 1;
+            margin-top: 16px;
+            padding: 14px;
+            border: 1px solid var(--ios-border);
+        }
+
+        .result-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            text-align: center;
+        }
+
+        .result-item .num {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .result-item .label {
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: var(--ios-secondary-label);
+            text-transform: uppercase;
+        }
+
+        @keyframes app-intro {
+            from { opacity: 0; transform: translateY(30px) scale(0.97); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <header>
+            <h1>色彩對比</h1>
+            <p>使用下方色盤揉合出目標色彩</p>
+        </header>
+
+        <div class="stage">
+            <div id="targetPane" class="color-pane">
+                <div class="pane-info">
+                    <span>目標</span>
+                    <span id="targetHex">#??????</span>
+                </div>
+            </div>
+            <div id="playerPane" class="color-pane">
+                <div class="pane-info">
+                    <span>你的調配</span>
+                    <span id="playerHex">#FFFFFF</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="picker-section">
+            <div class="color-wheel-wrapper" id="wheelWrapper">
+                <div class="color-wheel"></div>
+                <div class="wheel-handle" id="wheelHandle"></div>
+            </div>
+            
+            <div class="slider-container">
+                <span style="font-size:0.8rem; color:var(--ios-secondary-label)">亮度</span>
+                <input type="range" id="brightnessSlider" class="ios-slider" min="0" max="100" value="100">
+            </div>
+
+            <div class="meta-display">
+                <span id="metaHex">#FFFFFF</span>
+                <span id="metaRgb">RGB: 255, 255, 255</span>
+            </div>
+        </div>
+
+        <button id="actionBtn" class="ios-btn">檢查色差</button>
+
+        <div id="resultPanel" class="result-panel">
+            <div class="result-grid">
+                <div class="result-item">
+                    <div id="accuracyNum" class="num">0%</div>
+                    <div class="label">吻合度</div>
+                </div>
+                <div class="result-item">
+                    <div id="ratingText" class="num" style="font-size: 1.2rem; line-height: 1.5rem;">-</div>
+                    <div class="label">評級</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const targetPane = document.getElementById('targetPane');
+        const playerPane = document.getElementById('playerPane');
+        const targetHex = document.getElementById('targetHex');
+        const playerHex = document.getElementById('playerHex');
+        
+        const wheelWrapper = document.getElementById('wheelWrapper');
+        const wheelHandle = document.getElementById('wheelHandle');
+        const brightnessSlider = document.getElementById('brightnessSlider');
+        
+        const metaHex = document.getElementById('metaHex');
+        const metaRgb = document.getElementById('metaRgb');
+        const actionBtn = document.getElementById('actionBtn');
+        const resultPanel = document.getElementById('resultPanel');
+        const accuracyNum = document.getElementById('accuracyNum');
+        const ratingText = document.getElementById('ratingText');
+
+        let targetColor = { r: 0, g: 0, b: 0 };
+        let playerColor = { r: 255, g: 255, b: 255 };
+        let isRevealed = false;
+
+        let currentHue = 0;
+        let currentSat = 0;
+        let currentVal = 100;
+        let isDragging = false;
+
+        function initLevel() {
+            isRevealed = false;
+            targetColor = {
+                r: Math.floor(Math.random() * 256),
+                g: Math.floor(Math.random() * 256),
+                b: Math.floor(Math.random() * 256)
+            };
+
+            targetPane.style.backgroundColor = `rgb(${targetColor.r}, ${targetColor.g}, ${targetColor.b})`;
+            targetPane.classList.remove('reveal');
+            playerPane.classList.remove('reveal');
+            targetHex.innerText = "#??????";
+            
+            // 重置自訂選取器回正中央（白色）
+            currentHue = 0;
+            currentSat = 0;
+            currentVal = 100;
+            brightnessSlider.value = 100;
+            
+            updateHandlePosition(90, 90); // 180px 寬高，中心點是 90, 90
+            updateColorFromHSV();
+
+            resultPanel.classList.remove('show');
+            actionBtn.innerText = "檢查色差";
+            actionBtn.classList.remove('next-state');
+        }
+
+        // 精準處理色相環數學對齊
+        function handleWheelMove(e) {
+            if (isRevealed) return;
+            const rect = wheelWrapper.getBoundingClientRect();
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            let x = clientX - rect.left - centerX;
+            let y = clientY - rect.top - centerY;
+            
+            const maxRadius = rect.width / 2;
+            const distance = Math.sqrt(x*x + y*y);
+            
+            if (distance > maxRadius) {
+                x = (x / distance) * maxRadius;
+                y = (y / distance) * maxRadius;
+            }
+
+            updateHandlePosition(x + centerX, y + centerY);
+
+            // 【核心修正點：角度精準校正】
+            // Math.atan2(y, x) 得到的 0 度在右側（3點鐘方向），往下順時針增加。
+            // CSS conic-gradient 預設 0 度在上方（12點鐘方向），往右順時針增加。
+            // 因此，我們需要將 atan2 的角度加上 90 度，並確保維持在 0-360 之間。
+            let angle = Math.atan2(y, x) * (180 / Math.PI) + 90;
+            if (angle < 0) angle += 360;
+            
+            currentHue = angle; 
+            
+            // 【核心修正點：非線性飽和度校正】
+            // 由於 CSS 徑向漸層視覺上邊緣掉落較快，此處將距離轉換加入非線性權重，改善與視覺的同步率
+            const rawSat = Math.min(distance / maxRadius, 1);
+            currentSat = Math.pow(rawSat, 0.85) * 100; 
+
+            updateColorFromHSV();
+        }
+
+        function updateHandlePosition(x, y) {
+            wheelHandle.style.left = `${x}px`;
+            wheelHandle.style.top = `${y}px`;
+        }
+
+        function updateColorFromHSV() {
+            currentVal = brightnessSlider.value;
+            const rgb = hsvToRgb(currentHue / 360, currentSat / 100, currentVal / 100);
+            playerColor = rgb;
+
+            const hex = rgbToHex(rgb.r, rgb.g, rgb.b);
+            playerPane.style.backgroundColor = hex;
+            
+            playerHex.innerText = hex;
+            metaHex.innerText = hex;
+            metaRgb.innerText = `RGB: ${rgb.r}, ${rgb.g}, ${rgb.b}`;
+            
+            const baseRgb = hsvToRgb(currentHue / 360, currentSat / 100, 1);
+            brightnessSlider.style.background = `linear-gradient(to right, #000, rgb(${baseRgb.r},${baseRgb.g},${baseRgb.b}))`;
+        }
+
+        function hsvToRgb(h, s, v) {
+            let r, g, b;
+            let i = Math.floor(h * 6);
+            let f = h * 6 - i;
+            let p = v * (1 - s);
+            let q = v * (1 - f * s);
+            let t = v * (1 - (1 - f) * s);
+            switch (i % 6) {
+                case 0: r = v, g = t, b = p; break;
+                case 1: r = q, g = v, b = p; break;
+                case 2: r = p, g = v, b = t; break;
+                case 3: r = p, g = q, b = v; break;
+                case 4: r = t, g = p, b = v; break;
+                case 5: r = v, g = p, b = q; break;
+            }
+            return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
+        }
+
+        function rgbToHex(r, g, b) {
+            return "#" + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('').toUpperCase();
+        }
+
+        // 監聽器一體化
+        const startDrag = (e) => { isDragging = true; wheelHandle.style.transform = "scale(1.2)"; handleWheelMove(e); };
+        const doDrag = (e) => { if (isDragging) { e.preventDefault(); handleWheelMove(e); } };
+        const stopDrag = () => { isDragging = false; wheelHandle.style.transform = "scale(1)"; };
+
+        wheelWrapper.addEventListener('mousedown', startDrag);
+        window.addEventListener('mousemove', doDrag);
+        window.addEventListener('mouseup', stopDrag);
+
+        wheelWrapper.addEventListener('touchstart', startDrag, { passive: false });
+        window.addEventListener('touchmove', doDrag, { passive: false });
+        window.addEventListener('touchend', stopDrag);
+
+        brightnessSlider.addEventListener('input', updateColorFromHSV);
+
+        function animateNumber(element, start, end, duration, appendStr = "") {
+            let startTime = null;
+            function step(timestamp) {
+                if (!startTime) startTime = timestamp;
+                const progress = Math.min((timestamp - startTime) / duration, 1);
+                const easeProgress = 1 - Math.pow(1 - progress, 3);
+                const current = start + easeProgress * (end - start);
+                element.innerText = current.toFixed(1) + appendStr;
+                if (progress < 1) window.requestAnimationFrame(step);
+                else element.innerText = end.toFixed(1) + appendStr;
+            }
+            window.requestAnimationFrame(step);
+        }
+
+        actionBtn.addEventListener('click', () => {
+            if (!isRevealed) {
+                isRevealed = true;
+                targetHex.innerText = rgbToHex(targetColor.r, targetColor.g, targetColor.b);
+
+                const distance = Math.sqrt(
+                    Math.pow(targetColor.r - playerColor.r, 2) +
+                    Math.pow(targetColor.g - playerColor.g, 2) +
+                    Math.pow(targetColor.b - playerColor.b, 2)
+                );
+                let accuracy = (1 - (distance / 441.673)) * 100;
+                if (accuracy < 0) accuracy = 0;
+
+                let rating = "尚可", ratingColor = '#ff9500';
+                if (accuracy >= 98) { rating = "完美"; ratingColor = '#34c759'; }
+                else if (accuracy >= 92) { rating = "優秀"; ratingColor = '#34c759'; }
+                else if (accuracy >= 80) { rating = "良好"; ratingColor = '#007aff'; }
+                else if (accuracy < 60) { rating = "偏差較大"; ratingColor = '#ff3b30'; }
+
+                targetPane.classList.add('reveal');
+                playerPane.classList.add('reveal');
+                resultPanel.classList.add('show');
+                
+                animateNumber(accuracyNum, 0, accuracy, 800, "%");
+                ratingText.innerText = rating;
+                ratingText.style.color = ratingColor;
+
+                actionBtn.innerText = "下一關";
+                actionBtn.classList.add('next-state');
+            } else {
+                initLevel();
+            }
+        });
+
+        initLevel();
+    </script>
+</body>
+</html>
