@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Windows 95 3D Maze</title>
+    <title>Windows 95 3D Maze - 1080p Max Smooth Execution</title>
     <style>
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            /* 防止手機上長按彈出選單或選取文字 */
             -webkit-touch-callout: none;
             -webkit-user-select: none;
             user-select: none;
@@ -20,69 +19,345 @@
             overflow: hidden;
             background-color: #000;
             cursor: crosshair;
+            font-family: 'Microsoft JhengHei', sans-serif;
         }
         #canvas {
             display: block;
             width: 100vw;
             height: 100vh;
-            image-rendering: pixelated; /* 完美還原 90 年代低解析度顆粒感 */
+            image-rendering: pixelated; 
+        }
+        #dialogue-overlay {
+            display: none;
+            position: absolute;
+            bottom: 15%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60%;
+            background: rgba(10, 10, 10, 0.9);
+            border: 3px solid #444;
+            padding: 25px;
+            color: #d8d8d8;
+            font-size: 24px;
+            letter-spacing: 2px;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            pointer-events: none;
+            z-index: 999;
+        }
+        #dialogue-hint {
+            font-size: 14px;
+            color: #666;
+            margin-top: 10px;
+        }
+        #curse-screen {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background-color: #000;
+            z-index: 99999;
         }
     </style>
 </head>
 <body>
 
-    <canvas id="canvas" width="320" height="240"></canvas>
+    <canvas id="canvas" width="1920" height="1080"></canvas>
+    <div id="curse-screen"></div>
+    
+    <div id="dialogue-overlay">
+        <div id="dialogue-text"></div>
+        <div id="dialogue-hint"></div>
+    </div>
 
 <script>
+if (localStorage.getItem('the_dust_curse') === 'true') {
+    const curseOverlay = document.getElementById('curse-screen');
+    curseOverlay.style.display = 'block';
+    
+    let starClicks = 0;
+    const handleCurseKey = (e) => {
+        if (e.key === '*' || e.code === 'NumpadMultiply') {
+            starClicks++;
+            if (starClicks >= 5) {
+                clearTimeout(curseTimeout);
+                window.removeEventListener('keydown', handleCurseKey);
+                localStorage.removeItem('the_dust_curse');
+                curseOverlay.style.display = 'none';
+                roomCount = 1;
+                generateDenseMaze();
+                startLoop();
+            }
+        }
+    };
+    window.addEventListener('keydown', handleCurseKey);
+
+    const curseTimeout = setTimeout(() => {
+        window.close();
+        setTimeout(() => {
+            window.location.href = "about:blank";
+        }, 50);
+    }, 1000);
+}
+
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
+const diagOverlay = document.getElementById('dialogue-overlay');
+const diagText = document.getElementById('dialogue-text');
 
-// --- 迷宮地圖配置 (0:空地, 1:紅磚牆, 2:藍條紋牆, 3:太極, 4:老鼠) ---
-const map = [
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
-    [1,0,1,0,1,0,1,1,1,0,1,0,1,0,1],
-    [1,0,1,0,0,0,1,3,1,0,0,0,1,0,1],
-    [1,0,1,1,1,1,1,0,1,1,1,1,1,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,1,1,0,1,1,1,0,1,1,1,0,1,1,1],
-    [1,0,0,0,1,4,0,0,0,4,1,0,0,0,1],
-    [1,1,1,0,1,1,1,0,1,1,1,0,1,1,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,1,1,1,1,1,0,1,1,1,1,1,0,1],
-    [1,0,1,0,0,0,1,0,1,0,0,0,1,0,1],
-    [1,0,1,0,1,0,1,1,1,0,1,0,1,0,1],
-    [1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+const MAP_SIZE = 31; 
+let map = [];
+let portalX = 0, portalY = 0; 
+let roomCount = 1; 
+const GAME_VERSION = "v.0.0.0";
+
+const randomSlogans = ["加油...", "有意義嗎？", "沒意義的...", "出口在哪？", "永無止境", "回頭吧", "這是現實嗎？"];
+let eyeProtectionMode = false;
+
+let npcActive = false;
+let npcX = 0, npcY = 0;
+let npcDialogueStep = -1;
+let isTyping = false;
+let typingTimeout = null;
+let autoNextTimeout = null;
+
+const npcTexts = [
+    "你好...",
+    "我從未意識到有人能察覺到我..",
+    "你，真獨特，有耐心在這裡繞圈子.",
+    "但，你意識到我的存在了.",
+    "再見。"
 ];
 
-// --- 玩家物理狀態 ---
+let idleTime = 0;
+let lastMoveTime = performance.now();
+let screenFogIntensity = 0;
+let wasteSpeechTriggered = false;
+
+let multiRenderCount = 1; 
+
+function generateDenseMaze() {
+    map = Array(MAP_SIZE).fill(null).map(() => Array(MAP_SIZE).fill(1));
+    let walls = [];
+    
+    function addWalls(x, y) {
+        if (x > 1 && map[y][x-1] === 1) walls.push({x: x-1, y: y, px: x-2, py: y});
+        if (x < MAP_SIZE-2 && map[y][x+1] === 1) walls.push({x: x+1, y: y, px: x+2, py: y});
+        if (y > 1 && map[y-1][x] === 1) walls.push({x: x, y: y-1, px: x, py: y-2});
+        if (y < MAP_SIZE-2 && map[y+1][x] === 1) walls.push({x: x, y: y+1, px: x, py: y+2});
+    }
+
+    map[1][1] = 0;
+    addWalls(1, 1);
+
+    while (walls.length > 0) {
+        let randIdx = Math.floor(Math.random() * walls.length);
+        let wall = walls[randIdx];
+        walls.splice(randIdx, 1);
+
+        if (map[wall.py][wall.px] === 1) {
+            map[wall.y][wall.x] = 0;
+            map[wall.py][wall.px] = 0;
+            addWalls(wall.px, wall.py);
+        }
+    }
+
+    const isPass = (x, y) => (x >= 0 && x < MAP_SIZE && y >= 0 && y < MAP_SIZE) && (map[y][x] === 0 || map[y][x] === 2 || map[y][x] === 5);
+    const isWall = (x, y) => (x < 0 || x >= MAP_SIZE || y < 0 || y >= MAP_SIZE) || (map[y][x] !== 0 && map[y][x] !== 2 && map[y][x] !== 5);
+
+    for (let y = 1; y < MAP_SIZE - 1; y++) {
+        for (let x = 1; x < MAP_SIZE - 1; x++) {
+            if (map[y][x] === 0) {
+                if (isWall(x+1, y) && isWall(x-1, y) && isWall(x, y+1) && isWall(x, y-1)) {
+                    let dirs = [[1,0], [-1,0], [0,1], [0,-1]].sort(() => Math.random() - 0.5);
+                    for (let [dx, dy] of dirs) {
+                        let nx = x + dx;
+                        let ny = y + dy;
+                        if (nx > 0 && nx < MAP_SIZE - 1 && ny > 0 && ny < MAP_SIZE - 1) {
+                            map[ny][nx] = 0; 
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    map[1][2] = 2; 
+
+    for (let y = 1; y < MAP_SIZE - 1; y++) {
+        for (let x = 1; x < MAP_SIZE - 1; x++) {
+            if (map[y][x] === 0) {
+                if (map[y-1][x] === 0 && map[y+1][x] === 0 && map[y][x-1] === 0 && map[y][x+1] === 0) {
+                    map[y][x] = 1; 
+                }
+                if (map[y][x-1] === 0 && map[y][x+1] === 0 && Math.random() < 0.7) {
+                    if (map[y-1][x] === 1) map[y-1][x] = 0;
+                    else if (map[y+1][x] === 1) map[y+1][x] = 0;
+                }
+                if (map[y-1][x] === 0 && map[y+1][x] === 0 && Math.random() < 0.7) {
+                    if (map[y][x-1] === 1) map[y][x-1] = 0;
+                    else if (map[y][x+1] === 1) map[y][x+1] = 0;
+                }
+            }
+        }
+    }
+
+    if (map[1][1] !== 0) map[1][1] = 0;
+    if (map[1][2] !== 2) map[1][2] = 2;
+    if (isWall(2, 1) && isWall(1, 2)) map[2][1] = 0; 
+
+    let queue = [{x: 1, y: 1, dist: 0}];
+    let visited = Array(MAP_SIZE).fill(null).map(() => Array(MAP_SIZE).fill(false));
+    visited[1][1] = true;
+    
+    let maxDist = -1;
+    let deepestDeadEnds = [];
+
+    while (queue.length > 0) {
+        let curr = queue.shift();
+        let wallCount = 0;
+        if (isWall(curr.x+1, curr.y)) wallCount++;
+        if (isWall(curr.x-1, curr.y)) wallCount++;
+        if (isWall(curr.x, curr.y+1)) wallCount++;
+        if (isWall(curr.x, curr.y-1)) wallCount++;
+
+        if (wallCount === 3 && !(curr.x === 1 && curr.y === 1)) {
+            if (curr.dist > maxDist) {
+                maxDist = curr.dist;
+                deepestDeadEnds = [curr]; 
+            } else if (curr.dist === maxDist) {
+                deepestDeadEnds.push(curr);
+            }
+        }
+
+        const directions = [[1,0], [-1,0], [0,1], [0,-1]];
+        for (let [dx, dy] of directions) {
+            let nx = curr.x + dx;
+            let ny = curr.y + dy;
+            if (nx > 0 && nx < MAP_SIZE && ny > 0 && ny < MAP_SIZE && (map[ny][nx] === 0 || map[ny][nx] === 2) && !visited[ny][nx]) {
+                visited[ny][nx] = true;
+                queue.push({x: nx, y: ny, dist: curr.dist + 1});
+            }
+        }
+    }
+
+    let finalPortalTile = deepestDeadEnds[Math.floor(Math.random() * deepestDeadEnds.length)] || {x: MAP_SIZE-2, y: MAP_SIZE-2};
+    portalX = finalPortalTile.x;
+    portalY = finalPortalTile.y;
+    
+    map[portalY][portalX] = 5; 
+
+    for (let y = 1; y < MAP_SIZE - 1; y++) {
+        for (let x = 1; x < MAP_SIZE - 1; x++) {
+            if (map[y][x] === 0 || map[y][x] === 2 || map[y][x] === 5) {
+                if (isWall(x+1, y) && isWall(x-1, y) && isWall(x, y+1) && isWall(x, y-1)) {
+                    let dirs = [[1,0], [-1,0], [0,1], [0,-1]].sort(() => Math.random() - 0.5);
+                    for (let [dx, dy] of dirs) {
+                        let nx = x + dx;
+                        let ny = y + dy;
+                        if (nx > 0 && nx < MAP_SIZE - 1 && ny > 0 && ny < MAP_SIZE - 1) {
+                            if (map[ny][nx] !== 5 && map[ny][nx] !== 2) {
+                                map[ny][nx] = 0; 
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let dynamicTexId = 10;
+    for (let key in textures) { if (parseInt(key) >= 10) delete textures[key]; }
+
+    for (let y = 1; y < MAP_SIZE - 1; y++) {
+        for (let x = 1; x < MAP_SIZE - 1; x++) {
+            if (map[y][x] === 1) {
+                const h凹 = isPass(x, y+1) && isWall(x-1, y) && isWall(x+1, y) && isWall(x, y-1);
+                const h倒凹 = isPass(x, y-1) && isWall(x-1, y) && isWall(x+1, y) && isWall(x, y+1);
+                const v凹 = isPass(x+1, y) && isWall(x, y-1) && isWall(x, y+1) && isWall(x-1, y);
+                const v倒凹 = isPass(x-1, y) && isWall(x, y-1) && isWall(x, y+1) && isWall(x+1, y);
+
+                if (h凹 || h倒凹 || v凹 || v倒凹) {
+                    let r = Math.random();
+                    if (r < 0.2) map[y][x] = 3; 
+                    else if (r < 0.4) map[y][x] = 4; 
+                    else if (r < 0.7) {
+                        let slogan = randomSlogans[Math.floor(Math.random() * randomSlogans.length)];
+                        textures[dynamicTexId] = createSloganTexture(slogan);
+                        map[y][x] = dynamicTexId;
+                        dynamicTexId++;
+                    }
+                } else {
+                    if (Math.random() < 0.03) {
+                        let slogan = randomSlogans[Math.floor(Math.random() * randomSlogans.length)];
+                        textures[dynamicTexId] = createSloganTexture(slogan);
+                        map[y][x] = dynamicTexId;
+                        dynamicTexId++;
+                    }
+                }
+            }
+        }
+    }
+    
+    if (roomCount >= 10) {
+        npcActive = true;
+        npcDialogueStep = -1;
+        npcX = posX - Math.cos(angle) * 0.4;
+        npcY = posY - Math.sin(angle) * 0.4;
+        lastMoveTime = performance.now();
+        screenFogIntensity = 0;
+        wasteSpeechTriggered = false;
+    } else {
+        npcActive = false;
+    }
+
+    updateInfoTexture();
+}
+
 let posX = 1.5, posY = 1.5; 
-let dirX = 1, dirY = 0;     
-let planeX = 0, planeY = 0.66; 
-let currentAngle = Math.atan2(dirY, dirX);
+let angle = 0; 
+let dirX = Math.cos(angle), dirY = Math.sin(angle);
+let planeX = -dirY * 0.66, planeY = dirX * 0.66;
 
-// 速度參數
-const MOVE_SPEED = 0.05;
-const ROT_SPEED = 0.04;
+const controls = { forward: false, backward: false, left: false, right: false, shift: false };
+let lastTime = performance.now();
 
-// 天地翻轉狀態
-let isUpsideDown = false;
+function updateDirection() {
+    dirX = Math.cos(angle);
+    dirY = Math.sin(angle);
+    planeX = -dirY * 0.66;
+    planeY = dirX * 0.66;
+}
 
-// --- 統一控制狀態 (相容鍵盤與觸控) ---
-const controls = {
-    forward: false,
-    backward: false,
-    left: false,
-    right: false
-};
+function resetIdleTimer() {
+    lastMoveTime = performance.now();
+    if (!wasteSpeechTriggered && npcDialogueStep === -1) {
+        screenFogIntensity = 0;
+    }
+}
 
-// --- 1. 鍵盤事件監聽 ---
 window.addEventListener('keydown', (e) => {
-    if (['w', 'W', 'ArrowUp'].includes(e.key)) controls.forward = true;
-    if (['s', 'S', 'ArrowDown'].includes(e.key)) controls.backward = true;
-    if (['a', 'A', 'ArrowLeft'].includes(e.key)) controls.left = true;
-    if (['d', 'D', 'ArrowRight'].includes(e.key)) controls.right = true;
+    if (['w', 'W', 'ArrowUp'].includes(e.key)) { controls.forward = true; resetIdleTimer(); }
+    if (['s', 'S', 'ArrowDown'].includes(e.key)) { controls.backward = true; resetIdleTimer(); }
+    if (['a', 'A', 'ArrowLeft'].includes(e.key)) { controls.left = true; resetIdleTimer(); }   
+    if (['d', 'D', 'ArrowRight'].includes(e.key)) { controls.right = true; resetIdleTimer(); } 
+    if (e.key === 'Shift') { controls.shift = true; resetIdleTimer(); }
+    if (e.key === 'p' || e.key === 'P') eyeProtectionMode = !eyeProtectionMode;
+    
+    // 【新增核心邏輯】：按下 Numpad 的小數點點鍵（.）
+    if (e.key === '.' || e.code === 'NumpadDecimal') {
+        if (!isTransitioning && npcDialogueStep === -1 && !wasteSpeechTriggered) {
+            startPortalTransition(false); // 傳入 false 代表「純刷新地圖，不增加房間數」
+        }
+    }
+
+    if (e.key === '+' || e.code === 'NumpadAdd') {
+        multiRenderCount = Math.min(10, multiRenderCount + 1);
+    }
+    if (e.key === '-' || e.code === 'NumpadSubtract') {
+        multiRenderCount = Math.max(1, multiRenderCount - 1);
+    }
 });
 
 window.addEventListener('keyup', (e) => {
@@ -90,241 +365,493 @@ window.addEventListener('keyup', (e) => {
     if (['s', 'S', 'ArrowDown'].includes(e.key)) controls.backward = false;
     if (['a', 'A', 'ArrowLeft'].includes(e.key)) controls.left = false;
     if (['d', 'D', 'ArrowRight'].includes(e.key)) controls.right = false;
+    if (e.key === 'Shift') controls.shift = false;
 });
 
-// --- 2. 行動裝置觸控事件監聽 (支援多點觸控) ---
-function handleTouches(e) {
-    e.preventDefault(); // 防止畫面滾動或縮放
+canvas.addEventListener('click', (e) => {
+    if (document.pointerLockElement !== canvas && npcDialogueStep === -1 && !wasteSpeechTriggered) {
+        canvas.requestPointerLock();
+        return;
+    }
     
-    // 重設狀態
-    controls.forward = false;
-    controls.backward = false;
-    controls.left = false;
-    controls.right = false;
-
-    const screenWidth = window.innerWidth;
-    const screenHeight = window.innerHeight;
-
-    // 遍歷當前所有手指的觸控點
-    for (let i = 0; i < e.touches.length; i++) {
-        const touch = e.touches[i];
-        const x = touch.clientX;
-        const y = touch.clientY;
-
-        // 核心十字判定演算法
-        // 計算觸控點相對於螢幕中心的相對座標
-        const dx = x - (screenWidth / 2);
-        const dy = y - (screenHeight / 2);
-
-        // 比較水平距離與垂直距離，決定觸發哪個方向
-        if (Math.abs(dx) > Math.abs(dy)) {
-            if (dx > 0) controls.right = true;
-            else        controls.left = true;
-        } else {
-            if (dy > 0) controls.backward = true;
-            else        controls.forward = true;
+    if (npcActive && npcDialogueStep >= 0 && !isTyping && !wasteSpeechTriggered) {
+        advanceDialogue();
+    } else if (npcActive && npcDialogueStep === -1 && !wasteSpeechTriggered) {
+        let toNpcX = npcX - posX;
+        let toNpcY = npcY - posY;
+        let dist = Math.sqrt(toNpcX*toNpcX + toNpcY*toNpcY);
+        let angleToNpc = Math.atan2(toNpcY, toNpcX);
+        let angleDiff = angleToNpc - angle;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        
+        if (dist < 1.2 && Math.abs(angleDiff) < 0.4) {
+            document.exitPointerLock();
+            startNpcDialogueSequence();
         }
+    }
+});
+
+document.addEventListener('mousemove', (e) => {
+    if (e.movementX !== 0 || e.movementY !== 0) {
+        resetIdleTimer();
+    }
+    if (document.pointerLockElement === canvas && !isTransitioning && npcDialogueStep === -1) {
+        let mouseSpeed = 0.0022; 
+        angle += e.movementX * mouseSpeed;
+        updateDirection();
+    }
+});
+
+function startNpcDialogueSequence() {
+    npcDialogueStep = 0;
+    diagOverlay.style.display = 'block';
+    typeText(npcTexts[0], () => {
+        autoNextTimeout = setTimeout(advanceDialogue, 2000);
+    });
+}
+
+function advanceDialogue() {
+    if (wasteSpeechTriggered) return;
+    npcDialogueStep++;
+    if (npcDialogueStep < npcTexts.length) {
+        typeText(npcTexts[npcDialogueStep], () => {
+            autoNextTimeout = setTimeout(advanceDialogue, 2000);
+        });
+    } else {
+        triggerCurseEnd();
     }
 }
 
-canvas.addEventListener('touchstart', handleTouches, { passive: false });
-canvas.addEventListener('touchmove', handleTouches, { passive: false });
-canvas.addEventListener('touchend', (e) => {
-    if (e.touches.length === 0) {
-        controls.forward = false;
-        controls.backward = false;
-        controls.left = false;
-        controls.right = false;
-    } else {
-        handleTouches(e);
+function triggerCurseEnd() {
+    diagOverlay.style.display = 'none';
+    localStorage.setItem('the_dust_curse', 'true');
+    window.close();
+    setTimeout(() => {
+        window.location.href = "about:blank";
+    }, 50);
+}
+
+function typeText(fullText, callback) {
+    isTyping = true;
+    diagText.innerText = "";
+    let index = 0;
+    
+    function nextChar() {
+        if (index < fullText.length) {
+            let char = fullText[index];
+            diagText.innerText += char;
+            index++;
+            
+            let delay = 60;
+            if (char === ',' || char === '，') delay = 400;
+            else if (char === '.') delay = 600;
+            
+            typingTimeout = setTimeout(nextChar, delay);
+        } else {
+            isTyping = false;
+            if (callback) callback();
+        }
     }
-}, { passive: false });
+    nextChar();
+}
 
-
-// --- 紋理生成器 ---
-const texSize = 64;
+const texSize = 256; 
 const textures = {};
 
-function createTextures() {
-    // 1. 經典紅磚牆
+function updateInfoTexture() {
+    const infoCanvas = document.createElement('canvas'); 
+    infoCanvas.width = texSize; infoCanvas.height = texSize;
+    const iCtx = infoCanvas.getContext('2d');
+    
+    iCtx.fillStyle = '#222222'; iCtx.fillRect(0, 0, texSize, texSize);
+    iCtx.strokeStyle = '#555'; iCtx.lineWidth = 8; iCtx.strokeRect(0, 0, texSize, texSize);
+    
+    iCtx.save();
+    iCtx.translate(texSize, 0);
+    iCtx.scale(-1, 1);
+    
+    iCtx.fillStyle = '#ffffff';
+    iCtx.font = "bold 11px 'Microsoft JhengHei', sans-serif";
+    iCtx.textAlign = "center";
+    
+    iCtx.fillText("按下p開啟防眼睛痛模式，", texSize / 2, 40);
+    iCtx.fillText("WASD或上下左右鍵移動，滑鼠轉動視角。", texSize / 2, 70);
+    
+    iCtx.fillStyle = '#00ffcc';
+    iCtx.fillText(`第${roomCount}個房間。`, texSize / 2, 110);
+    
+    iCtx.fillStyle = '#ffff00';
+    let portalKeyword = (roomCount === 1) ? "綠色傳送門。" : "下一個綠色傳送門。";
+    iCtx.fillText(`找到那個在某處的${portalKeyword}`, texSize / 2, 150);
+    
+    iCtx.fillStyle = '#777777';
+    iCtx.font = "11px monospace";
+    iCtx.fillText(`版本${GAME_VERSION}`, texSize / 2, 215);
+    
+    iCtx.restore();
+    textures[2] = iCtx.getImageData(0, 0, texSize, texSize);
+}
+
+function createSloganTexture(text) {
+    const sCanvas = document.createElement('canvas'); sCanvas.width = texSize; sCanvas.height = texSize;
+    const sCtx = sCanvas.getContext('2d');
+    sCtx.fillStyle = '#800000'; sCtx.fillRect(0, 0, texSize, texSize);
+    sCtx.fillStyle = '#5c0000';
+    for(let i=0; i<texSize; i+=32) sCtx.fillRect(0, i, texSize, 2);
+    
+    sCtx.save(); sCtx.translate(texSize, 0); sCtx.scale(-1, 1);
+    sCtx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    sCtx.font = "bold 24px 'KaiTi', 'Microsoft JhengHei', sans-serif";
+    sCtx.textAlign = "center";
+    sCtx.shadowColor = 'black'; sCtx.shadowBlur = 4;
+    sCtx.fillText(text, texSize / 2, texSize / 2 + 8);
+    sCtx.restore();
+    return sCtx.getImageData(0, 0, texSize, texSize);
+}
+
+function createStaticTextures() {
     const bCanvas = document.createElement('canvas'); bCanvas.width = texSize; bCanvas.height = texSize;
     const bCtx = bCanvas.getContext('2d');
     bCtx.fillStyle = '#990000'; bCtx.fillRect(0, 0, texSize, texSize);
     bCtx.fillStyle = '#dfdfdf';
-    for(let i=0; i<texSize; i+=8) bCtx.fillRect(0, i, texSize, 1);
-    for(let i=0; i<texSize; i+=8) {
-        let offset = (i / 8) % 2 * 8;
-        for(let j=offset; j<texSize+offset; j+=16) bCtx.fillRect(j % texSize, i, 1, 8);
+    for(let i=0; i<texSize; i+=32) bCtx.fillRect(0, i, texSize, 2);
+    for(let i=0; i<texSize; i+=32) {
+        let offset = (i / 32) % 2 * 32;
+        for(let j=offset; j<texSize+offset; j+=64) bCtx.fillRect(j % texSize, i, 2, 32);
     }
     textures[1] = bCtx.getImageData(0, 0, texSize, texSize);
 
-    // 2. 藍色條紋牆
-    const blCanvas = document.createElement('canvas'); blCanvas.width = texSize; blCanvas.height = texSize;
-    const blCtx = blCanvas.getContext('2d');
-    blCtx.fillStyle = '#00007f'; blCtx.fillRect(0,0,texSize,texSize);
-    blCtx.fillStyle = '#0000ff';
-    for(let i=0; i<texSize; i+=16) blCtx.fillRect(i, 0, 8, texSize);
-    textures[2] = blCtx.getImageData(0, 0, texSize, texSize);
-
-    // 3. 太極圖牆面
     const tCanvas = document.createElement('canvas'); tCanvas.width = texSize; tCanvas.height = texSize;
     const tCtx = tCanvas.getContext('2d');
     tCtx.fillStyle = '#fff'; tCtx.fillRect(0,0,texSize,texSize);
-    tCtx.fillStyle = '#000'; tCtx.beginPath(); tCtx.arc(32,32,28,0,Math.PI*2); tCtx.stroke();
-    tCtx.beginPath(); tCtx.arc(32,32,28,Math.PI/2, Math.PI*1.5); tCtx.fill();
-    tCtx.beginPath(); tCtx.arc(32,18,14,0,Math.PI*2); tCtx.fill();
-    tCtx.fillStyle = '#fff'; tCtx.beginPath(); tCtx.arc(32,46,14,0,Math.PI*2); tCtx.fill();
-    tCtx.fillStyle = '#000'; tCtx.beginPath(); tCtx.arc(32,46,4,0,Math.PI*2); tCtx.fill();
-    tCtx.fillStyle = '#fff'; tCtx.beginPath(); tCtx.arc(32,18,4,0,Math.PI*2); tCtx.fill();
+    tCtx.fillStyle = '#000'; tCtx.beginPath(); tCtx.arc(128,128,110,0,Math.PI*2); tCtx.stroke();
+    tCtx.beginPath(); tCtx.arc(128,128,110,Math.PI/2, Math.PI*1.5); tCtx.fill();
+    tCtx.beginPath(); tCtx.arc(128,73,55,0,Math.PI*2); tCtx.fill();
+    tCtx.fillStyle = '#fff'; tCtx.beginPath(); tCtx.arc(128,183,55,0,Math.PI*2); tCtx.fill();
+    tCtx.fillStyle = '#000'; tCtx.beginPath(); tCtx.arc(128,183,16,0,Math.PI*2); tCtx.fill();
+    tCtx.fillStyle = '#fff'; tCtx.beginPath(); tCtx.arc(128,73,16,0,Math.PI*2); tCtx.fill();
     textures[3] = tCtx.getImageData(0, 0, texSize, texSize);
 
-    // 4. 經典老鼠
     const mCanvas = document.createElement('canvas'); mCanvas.width = texSize; mCanvas.height = texSize;
     const mCtx = mCanvas.getContext('2d');
-    mCtx.fillStyle = '#555'; mCtx.fillRect(0,0,texSize,texSize);
-    mCtx.fillStyle = '#d8d8d8'; mCtx.fillRect(16, 30, 32, 16); mCtx.fillRect(40, 24, 12, 12);
-    mCtx.fillStyle = '#ffb6c1'; mCtx.fillRect(42, 20, 4, 4); mCtx.fillRect(52, 28, 2, 2);
-    mCtx.fillStyle = '#000'; mCtx.fillRect(48, 26, 2, 2);
+    mCtx.fillStyle = '#444'; mCtx.fillRect(0,0,texSize,texSize);
+    mCtx.fillStyle = '#d8d8d8'; mCtx.fillRect(60, 110, 130, 60); mCtx.fillRect(150, 90, 50, 50);
+    mCtx.fillStyle = '#ffb6c1'; mCtx.fillRect(160, 70, 15, 20); mCtx.fillRect(200, 110, 10, 10);
+    mCtx.fillStyle = '#000'; mCtx.fillRect(180, 100, 8, 8);
     textures[4] = mCtx.getImageData(0, 0, texSize, texSize);
+
+    const pCanvas = document.createElement('canvas'); pCanvas.width = texSize; pCanvas.height = texSize;
+    const pCtx = pCanvas.getContext('2d');
+    pCtx.fillStyle = '#002200'; pCtx.fillRect(0, 0, texSize, texSize);
+    pCtx.fillStyle = '#00ff33';
+    for (let i = 0; i < texSize; i += 8) {
+        for (let j = 0; j < texSize; j += 8) {
+            if (Math.random() < 0.35) pCtx.fillRect(i, j, 5, 5);
+        }
+    }
+    textures[5] = pCtx.getImageData(0, 0, texSize, texSize);
+
+    const cCanvas = document.createElement('canvas'); cCanvas.width = texSize; cCanvas.height = texSize;
+    const cCtx = cCanvas.getContext('2d');
+    cCtx.fillStyle = '#EAE6DF'; cCtx.fillRect(0, 0, texSize, texSize);
+    cCtx.fillStyle = '#C4C0B9';
+    for(let i=0; i<texSize; i+=32) cCtx.fillRect(0, i, texSize, 2);
+    textures['ceiling'] = cCtx.getImageData(0, 0, texSize, texSize);
+
+    const fCanvas = document.createElement('canvas'); fCanvas.width = texSize; fCanvas.height = texSize;
+    const fCtx = fCanvas.getContext('2d');
+    fCtx.fillStyle = '#B77D38'; fCtx.fillRect(0, 0, texSize, texSize);
+    fCtx.fillStyle = '#966023';
+    for(let i=0; i<texSize; i+=32) fCtx.fillRect(i, 0, 2, texSize);
+    textures['floor'] = fCtx.getImageData(0, 0, texSize, texSize);
 }
-createTextures();
+createStaticTextures();
 
 function getGrid(x, y) {
-    if (x < 0 || x >= 15 || y < 0 || y >= 15) return 1;
+    if (x < 0 || x >= MAP_SIZE || y < 0 || y >= MAP_SIZE) return 1;
     return map[Math.floor(y)][Math.floor(x)];
 }
 
-// --- 更新位置與碰撞邏輯 ---
-function update() {
-    // 踩到太極觸發翻轉
-    if (Math.floor(posX) === 7 && Math.floor(posY) === 3) {
-        isUpsideDown = true;
-    } else if (Math.floor(posX) === 1 && Math.floor(posY) === 1) {
-        isUpsideDown = false; 
+let isTransitioning = false;
+let transitionAlpha = 0.0;
+
+// 【修改核心】：增加 incrementRoom 參數，預設為 true（正常過關走傳送門）。按點鍵刷新時傳入 false。
+function startPortalTransition(incrementRoom = true) {
+    isTransitioning = true;
+    transitionAlpha = 0.0;
+    
+    const interval = setInterval(() => {
+        transitionAlpha += 0.1;
+        if (transitionAlpha >= 1.0) {
+            clearInterval(interval);
+            
+            // 判斷是否需要增加房間計數
+            if (incrementRoom) {
+                roomCount++;
+            }
+            
+            generateDenseMaze();
+            
+            posX = 1.5;
+            posY = 1.5;
+            angle = 0;
+            updateDirection();
+            
+            const reverseInterval = setInterval(() => {
+                transitionAlpha -= 0.1;
+                if (transitionAlpha <= 0.0) {
+                    transitionAlpha = 0.0;
+                    isTransitioning = false;
+                    clearInterval(reverseInterval);
+                }
+            }, 100); 
+        }
+    }, 100); 
+}
+
+function update(timeScale) {
+    if (isTransitioning) return;
+
+    let currentTime = performance.now();
+    if (npcActive && npcDialogueStep === -1 && !wasteSpeechTriggered) {
+        if (currentTime - lastMoveTime > 5000) {
+            screenFogIntensity = Math.min(1.0, screenFogIntensity + 0.0033 * timeScale);
+            if (screenFogIntensity >= 1.0) {
+                wasteSpeechTriggered = true;
+                document.exitPointerLock();
+                diagOverlay.style.display = 'block';
+                typeText("此處不容那資源浪費者.", () => {
+                    setTimeout(triggerCurseEnd, 2500);
+                });
+            }
+        } else {
+            screenFogIntensity = Math.max(0, screenFogIntensity - 0.01 * timeScale);
+        }
     }
 
+    if (npcDialogueStep !== -1 || wasteSpeechTriggered) return;
+
+    let baseSpeed = controls.shift ? 0.08 : 0.045;
+    let speed = baseSpeed * timeScale;
     let moveX = 0;
     let moveY = 0;
-
     if (controls.forward) { moveX += dirX; moveY += dirY; }
     if (controls.backward) { moveX -= dirX; moveY -= dirY; }
-
+    if (controls.left) { moveX -= planeX; moveY -= planeY; }  
+    if (controls.right) { moveX += planeX; moveY += planeY; } 
+    
     if (moveX !== 0 || moveY !== 0) {
-        let nextX = posX + moveX * MOVE_SPEED;
-        let nextY = posY + moveY * MOVE_SPEED;
-        // 碰撞緩衝半徑
-        if (getGrid(nextX + Math.sign(moveX)*0.2, posY) === 0) posX = nextX;
-        if (getGrid(posX, nextY + Math.sign(moveY)*0.2) === 0) posY = nextY;
+        let len = Math.sqrt(moveX*moveX + moveY*moveY);
+        moveX /= len; moveY /= len;
+        let nextX = posX + moveX * speed;
+        let nextY = posY + moveY * speed;
+        
+        let pCurrentX = Math.floor(nextX);
+        let pCurrentY = Math.floor(nextY);
+
+        const hitPortal = (pCurrentX === portalX && pCurrentY === portalY) || 
+                          (pCurrentX + 1 === portalX && pCurrentY === portalY) ||
+                          (pCurrentX - 1 === portalX && pCurrentY === portalY) ||
+                          (pCurrentX === portalX && pCurrentY + 1 === portalY) ||
+                          (pCurrentX === portalX && pCurrentY - 1 === portalY);
+
+        if (hitPortal) {
+            startPortalTransition(true); // 正常走傳送門，計數增加
+            return;
+        }
+
+        if (getGrid(nextX + Math.sign(moveX)*0.25, posY) === 0) posX = nextX;
+        if (getGrid(posX, nextY + Math.sign(moveY)*0.25) === 0) posY = nextY;
     }
 
-    let rot = 0;
-    if (controls.left) rot -= ROT_SPEED;
-    if (controls.right) rot += ROT_SPEED;
-
-    if (rot !== 0) {
-        currentAngle += rot;
-        dirX = Math.cos(currentAngle);
-        dirY = Math.sin(currentAngle);
-        planeX = -dirY * 0.66;
-        planeY = dirX * 0.66;
+    if (npcActive && npcDialogueStep === -1) {
+        let targetNpcX = posX - dirX * 0.35;
+        let targetNpcY = posY - dirY * 0.35;
+        npcX += (targetNpcX - npcX) * 0.15 * timeScale;
+        npcY += (targetNpcY - npcY) * 0.15 * timeScale;
     }
 }
 
-// --- 渲染引擎 ---
+let zBuffer = new Float32Array(1920);
+
 function render() {
     const w = canvas.width;
     const h = canvas.height;
     const imgData = ctx.createImageData(w, h);
     const buffer = new Uint32Array(imgData.data.buffer);
-
-    const topColor = isUpsideDown ? 0xFF000000 : 0xFFFF0000;
-    const bottomColor = isUpsideDown ? 0xFFFF0000 : 0xFF000000;
-
-    for(let y=0; y<h/2; y++) {
-        for(let x=0; x<w; x++) {
-            buffer[y * w + x] = topColor;
-            buffer[(h - 1 - y) * w + x] = bottomColor;
-        }
-    }
-
+    const fTex = textures['floor'].data;
+    const cTex = textures['ceiling'].data;
+    
     for (let x = 0; x < w; x++) {
         let cameraX = 2 * x / w - 1;
         let rayDirX = dirX + planeX * cameraX;
         let rayDirY = dirY + planeY * cameraX;
-
         let mapX = Math.floor(posX);
         let mapY = Math.floor(posY);
-
         let sideDistX, sideDistY;
         let deltaDistX = (rayDirX === 0) ? Infinity : Math.abs(1 / rayDirX);
         let deltaDistY = (rayDirY === 0) ? Infinity : Math.abs(1 / rayDirY);
         let perpWallDist;
-
         let stepX, stepY;
         let hit = 0, side, texNum = 1;
-
+        
         if (rayDirX < 0) { stepX = -1; sideDistX = (posX - mapX) * deltaDistX; }
         else             { stepX = 1; sideDistX = (mapX + 1.0 - posX) * deltaDistX; }
         if (rayDirY < 0) { stepY = -1; sideDistY = (posY - mapY) * deltaDistY; }
         else             { stepY = 1; sideDistY = (mapY + 1.0 - posY) * deltaDistY; }
-
+        
         while (hit === 0) {
             if (sideDistX < sideDistY) { sideDistX += deltaDistX; mapX += stepX; side = 0; }
             else                       { sideDistY += deltaDistY; mapY += stepY; side = 1; }
             if (getGrid(mapX, mapY) > 0) { hit = 1; texNum = getGrid(mapX, mapY); }
         }
-
+        
         if (side === 0) perpWallDist = (sideDistX - deltaDistX);
-        else           perpWallDist = (sideDistY - deltaDistY);
-
+        else            perpWallDist = (sideDistY - deltaDistY);
+        
+        zBuffer[x] = perpWallDist; 
+        
         let lineHeight = Math.floor(h / perpWallDist);
         let drawStart = Math.max(0, -lineHeight / 2 + h / 2);
         let drawEnd = Math.min(h - 1, lineHeight / 2 + h / 2);
-
         let wallX = (side === 0) ? posY + perpWallDist * rayDirY : posX + perpWallDist * rayDirX;
         wallX -= Math.floor(wallX);
-
         let texX = Math.floor(wallX * texSize);
         if (side === 0 && rayDirX > 0) texX = texSize - texX - 1;
         if (side === 1 && rayDirY < 0) texX = texSize - texX - 1;
-
+        
         const texture = textures[texNum] ? textures[texNum].data : textures[1].data;
-
         for (let y = Math.floor(drawStart); y < Math.floor(drawEnd); y++) {
             let d = Math.floor(y * 256 - h * 128 + lineHeight * 128);
             let texY = Math.floor(((d * texSize) / lineHeight) / 256);
             texY = Math.max(0, Math.min(texSize - 1, texY));
-
             let texPos = (texY * texSize + texX) * 4;
             let r = texture[texPos];
             let g = texture[texPos + 1];
             let b = texture[texPos + 2];
-
-            if (side === 1) { r >>= 1; g >>= 1; b >>= 1; }
-
+            if (side === 1) { r >>= 1; g >>= 1; b >>= 1; } 
             buffer[y * w + x] = (255 << 24) | (b << 16) | (g << 8) | r;
+        }
+        
+        let floorXWall, floorYWall;
+        if (side === 0 && rayDirX > 0) { floorXWall = mapX; floorYWall = mapY + wallX; }
+        else if (side === 0 && rayDirX < 0) { floorXWall = mapX + 1.0; floorYWall = mapY + wallX; }
+        else if (side === 1 && rayDirY > 0) { floorXWall = mapX + wallX; floorYWall = mapY; }
+        else { floorXWall = mapX + wallX; floorYWall = mapY + 1.0; }
+        let currentDist;
+        
+        for (let y = 0; y < Math.floor(drawStart); y++) {
+            currentDist = h / (h - 2.0 * y);
+            let weight = currentDist / perpWallDist;
+            let currentFloorX = weight * floorXWall + (1.0 - weight) * posX;
+            let currentFloorY = weight * floorYWall + (1.0 - weight) * posY;
+            let cTexX = Math.floor(currentFloorX * texSize) % texSize;
+            let cTexY = Math.floor(currentFloorY * texSize) % texSize;
+            let cPos = (cTexY * texSize + cTexX) * 4;
+            buffer[y * w + x] = (255 << 24) | (cTex[cPos+2] << 16) | (cTex[cPos+1] << 8) | cTex[cPos];
+        }
+        
+        for (let y = Math.floor(drawEnd); y < h; y++) {
+            currentDist = h / (2.0 * y - h);
+            let weight = currentDist / perpWallDist;
+            let currentFloorX = weight * floorXWall + (1.0 - weight) * posX;
+            let currentFloorY = weight * floorYWall + (1.0 - weight) * posY;
+            let fTexX = Math.floor(currentFloorX * texSize) % texSize;
+            let fTexY = Math.floor(currentFloorY * texSize) % texSize;
+            let fPos = (fTexY * texSize + fTexX) * 4;
+            buffer[y * w + x] = (255 << 24) | (fTex[fPos+2] << 16) | (fTex[fPos+1] << 8) | fTex[fPos];
+        }
+    }
+    ctx.putImageData(imgData, 0, 0);
+
+    if (npcActive && npcDialogueStep === -1) {
+        let spriteX = npcX - posX;
+        let spriteY = npcY - posY;
+        let invDet = 1.0 / (planeX * dirY - dirX * planeY);
+        let transformX = invDet * (dirY * spriteX - dirX * spriteY);
+        let transformY = invDet * (-planeY * spriteX + planeX * spriteY); 
+        
+        if (transformY > 0.05) {
+            let spriteScreenX = Math.floor((w / 2) * (1 + transformX / transformY));
+            let spriteHeight = Math.abs(Math.floor(h / transformY));
+            let spriteWidth = Math.abs(Math.floor(h / transformY));
+            let drawStartX = Math.max(0, -spriteWidth / 2 + spriteScreenX);
+            let drawEndX = Math.min(w - 1, spriteWidth / 2 + spriteScreenX);
+            
+            ctx.fillStyle = 'rgba(18, 18, 18, 0.96)';
+            for (let stripe = drawStartX; stripe < drawEndX; stripe++) {
+                if (transformY < zBuffer[stripe]) {
+                    if (Math.random() < 0.92) {
+                        ctx.beginPath();
+                        ctx.arc(stripe, h / 2 + (Math.random() - 0.5) * spriteHeight * 0.7, 2 + Math.random() * 5, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            }
         }
     }
 
-    ctx.putImageData(imgData, 0, 0);
+    if (screenFogIntensity > 0) {
+        ctx.fillStyle = `rgba(12, 12, 12, ${screenFogIntensity})`;
+        ctx.fillRect(0, 0, w, h);
+        
+        if (screenFogIntensity > 0.1) {
+            ctx.fillStyle = `rgba(26, 26, 26, ${screenFogIntensity * 0.95})`;
+            for (let i = 0; i < 450 * screenFogIntensity; i++) {
+                ctx.beginPath();
+                ctx.arc(Math.random() * w, Math.random() * h, 4 + Math.random() * 20, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    }
+
+    if (eyeProtectionMode) {
+        ctx.fillStyle = "rgba(225, 145, 15, 0.16)";
+        ctx.globalCompositeOperation = "multiply";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.globalCompositeOperation = "source-over";
+    }
+
+    if (transitionAlpha > 0) {
+        ctx.fillStyle = `rgba(0, 0, 0, ${transitionAlpha})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
 }
 
-// 調整畫布尺寸以適應行動端視窗變化
 function resize() {
-    // 保持 320x240 的內部渲染比例，由 CSS 拉伸，以確保穩定的像素鋸齒感
-    canvas.width = 320;
-    canvas.height = 240;
+    canvas.width = 1920;
+    canvas.height = 1080;
 }
 window.addEventListener('resize', resize);
 
-function loop() {
-    update();
-    render();
-    requestAnimationFrame(loop);
+function frameLoop() {
+    let now = performance.now();
+    let dt = now - lastTime;
+    lastTime = now;
+    
+    if (dt > 100) dt = 16.66;
+    let timeScale = dt / 16.66;
+
+    update(timeScale);
+
+    for (let i = 0; i < multiRenderCount; i++) {
+        render();
+    }
+
+    requestAnimationFrame(frameLoop);
 }
 
-resize();
-loop();
+function startLoop() {
+    lastTime = performance.now();
+    requestAnimationFrame(frameLoop);
+}
+
+if (localStorage.getItem('the_dust_curse') !== 'true') {
+    generateDenseMaze();
+    resize();
+    startLoop();
+}
 </script>
 </body>
 </html>
