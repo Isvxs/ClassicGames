@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Windows 95 3D Maze - 1080p Max Smooth Execution</title>
+    <title>Windows 95 3D Maze - 1080p Engine</title>
     <style>
         * {
             box-sizing: border-box;
@@ -20,12 +20,16 @@
             background-color: #000;
             cursor: crosshair;
             font-family: 'Microsoft JhengHei', sans-serif;
+            transition: filter 0.1s ease;
+        }
+        .inverted-end {
+            filter: invert(1) hue-rotate(180deg) !important;
+            background-color: #fff !important;
         }
         #canvas {
             display: block;
             width: 100vw;
             height: 100vh;
-            image-rendering: pixelated; 
         }
         #dialogue-overlay {
             display: none;
@@ -57,6 +61,65 @@
             background-color: #000;
             z-index: 99999;
         }
+        #dev-panel {
+            display: none;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px dashed #00ff00;
+            padding: 15px;
+            color: #00ff00;
+            font-family: monospace;
+            font-size: 13px;
+            z-index: 10000;
+            width: 320px;
+            box-shadow: 0 0 15px rgba(0,255,0,0.3);
+        }
+        .dev-title {
+            font-weight: bold;
+            text-align: center;
+            border-bottom: 1px solid #00ff00;
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+        }
+        .dev-section {
+            margin-bottom: 8px;
+        }
+        .dev-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+        #dev-panel input[type="number"] {
+            background: #111;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            padding: 2px 4px;
+            width: 70px;
+            font-family: monospace;
+        }
+        #dev-panel input[type="checkbox"] {
+            accent-color: #00ff00;
+            cursor: pointer;
+        }
+        .dev-stats {
+            border-top: 1px dashed #00ff00;
+            margin-top: 10px;
+            padding-top: 8px;
+            font-size: 11px;
+            color: #88ff88;
+        }
+        .dev-credit {
+            margin-top: 8px;
+            padding-top: 5px;
+            border-top: 1px solid #00ff00;
+            font-size: 10px;
+            color: #00aa00;
+            text-align: center;
+            line-height: 1.3;
+        }
     </style>
 </head>
 <body>
@@ -67,6 +130,66 @@
     <div id="dialogue-overlay">
         <div id="dialogue-text"></div>
         <div id="dialogue-hint"></div>
+    </div>
+
+    <div id="dev-panel">
+        <div class="dev-title">⚙️ DEV MODE OVERRIDE ⚙️</div>
+        <div class="dev-section">
+            <div class="dev-row">
+                <label>房間數:</label>
+                <input type="number" id="dev-room" min="1">
+            </div>
+            <div class="dev-row">
+                <label>FPS 限制 (0=無):</label>
+                <input type="number" id="dev-fps" min="0" max="999">
+            </div>
+            <div class="dev-row">
+                <label>FOV 視角範圍:</label>
+                <input type="number" id="dev-fov" min="30" max="150" step="5">
+            </div>
+            <div class="dev-row">
+                <label>走路速度:</label>
+                <input type="number" id="dev-walk" min="0" max="0.5" step="0.005">
+            </div>
+            <div class="dev-row">
+                <label>跑步速度:</label>
+                <input type="number" id="dev-run" min="0" max="0.5" step="0.005">
+            </div>
+            <div class="dev-row">
+                <label>跳躍功能 (Jumpable):</label>
+                <input type="checkbox" id="dev-jump">
+            </div>
+            <div class="dev-row">
+                <label>無限跳躍 (Infinite Jump):</label>
+                <input type="checkbox" id="dev-infjump">
+            </div>
+            <div class="dev-row">
+                <label>飛行模式 (Fly):</label>
+                <input type="checkbox" id="dev-fly">
+            </div>
+            <div class="dev-row">
+                <label>穿牆模式 (Noclip):</label>
+                <input type="checkbox" id="dev-noclip">
+            </div>
+            <div class="dev-row">
+                <label>垂直視角轉動 (Pitch):</label>
+                <input type="checkbox" id="dev-pitch">
+            </div>
+            <div class="dev-row">
+                <label>地圖顯示 (Minimap):</label>
+                <input type="checkbox" id="dev-map">
+            </div>
+        </div>
+        <div class="dev-stats">
+            <div>運行時間: <span id="stat-time">0.0s</span></div>
+            <div>目前影格: <span id="stat-fps">0</span> FPS</div>
+            <div>平均影格: <span id="stat-avg-fps">0</span> FPS</div>
+            <div>總傳送次數: <span id="stat-portals">0</span></div>
+            <div>版本號: <span id="stat-version">v.1.2.0</span></div>
+        </div>
+        <div class="dev-credit">
+            該由Isvxs開發；Isvxs，ClassicGames(3D maze)，workers.dev，2026。
+        </div>
     </div>
 
 <script>
@@ -108,7 +231,7 @@ const MAP_SIZE = 31;
 let map = [];
 let portalX = 0, portalY = 0; 
 let roomCount = 1; 
-const GAME_VERSION = "v.0.0.0";
+const GAME_VERSION = "v.1.2.0";
 
 const randomSlogans = ["加油...", "有意義嗎？", "沒意義的...", "出口在哪？", "永無止境", "回頭吧", "這是現實嗎？"];
 let eyeProtectionMode = false;
@@ -116,6 +239,8 @@ let eyeProtectionMode = false;
 let npcActive = false;
 let npcX = 0, npcY = 0;
 let npcDialogueStep = -1;
+let npcTriggeredInThisRoom = false; 
+let showRedSmile = false; 
 let isTyping = false;
 let typingTimeout = null;
 let autoNextTimeout = null;
@@ -128,12 +253,41 @@ const npcTexts = [
     "再見。"
 ];
 
-let idleTime = 0;
+let smileyActive = false;
+let smileyX = 0, smileyY = 0;
+let smileySpeed = 0.008; 
+let smileyInVision = false; 
+
 let lastMoveTime = performance.now();
 let screenFogIntensity = 0;
 let wasteSpeechTriggered = false;
 
-let multiRenderCount = 1; 
+let startTime = performance.now();
+let totalFrameCount = 0;
+let lastFpsUpdateTime = performance.now();
+let fpsCountThisSecond = 0;
+let currentFpsDisplay = 0;
+let totalPortalCount = 0;
+let devModeActive = false;
+let devSevenClicks = 0;
+
+let cfg = {
+    fov: 66,
+    walkSpeed: 0.045,
+    runSpeed: 0.08,
+    jumpable: false,
+    infiniteJump: false,
+    fly: false,
+    noclip: false,
+    pitchEnabled: false,
+    minimap: false,
+    fpsLimit: 0
+};
+
+let isJumping = false;
+let jumpTime = 0;
+let zOffset = 0; 
+let pitchAngle = 0; 
 
 function generateDenseMaze() {
     map = Array(MAP_SIZE).fill(null).map(() => Array(MAP_SIZE).fill(1));
@@ -300,11 +454,13 @@ function generateDenseMaze() {
         }
     }
     
+    npcTriggeredInThisRoom = false;
+    showRedSmile = false;
     if (roomCount >= 10) {
         npcActive = true;
         npcDialogueStep = -1;
-        npcX = posX - Math.cos(angle) * 0.4;
-        npcY = posY - Math.sin(angle) * 0.4;
+        npcX = posX - Math.cos(angle) * 0.8;
+        npcY = posY - Math.sin(angle) * 0.8;
         lastMoveTime = performance.now();
         screenFogIntensity = 0;
         wasteSpeechTriggered = false;
@@ -312,28 +468,27 @@ function generateDenseMaze() {
         npcActive = false;
     }
 
+    if (roomCount >= 15) {
+        smileyActive = true;
+        smileyX = MAP_SIZE - 2.5;
+        smileyY = MAP_SIZE - 2.5;
+    } else {
+        smileyActive = false;
+    }
+
     updateInfoTexture();
 }
 
-let posX = 1.5, posY = 1.5; 
-let angle = 0; 
-let dirX = Math.cos(angle), dirY = Math.sin(angle);
-let planeX = -dirY * 0.66, planeY = dirX * 0.66;
+let devPanel = document.getElementById('dev-panel');
 
-const controls = { forward: false, backward: false, left: false, right: false, shift: false };
-let lastTime = performance.now();
-
-function updateDirection() {
-    dirX = Math.cos(angle);
-    dirY = Math.sin(angle);
-    planeX = -dirY * 0.66;
-    planeY = dirX * 0.66;
-}
-
-function resetIdleTimer() {
-    lastMoveTime = performance.now();
-    if (!wasteSpeechTriggered && npcDialogueStep === -1) {
-        screenFogIntensity = 0;
+function toggleDevPanel() {
+    if (devPanel.style.display === 'block') {
+        devPanel.style.display = 'none';
+        devModeActive = false;
+    } else {
+        devPanel.style.display = 'block';
+        devModeActive = true;
+        syncInputsToConfig();
     }
 }
 
@@ -345,20 +500,79 @@ window.addEventListener('keydown', (e) => {
     if (e.key === 'Shift') { controls.shift = true; resetIdleTimer(); }
     if (e.key === 'p' || e.key === 'P') eyeProtectionMode = !eyeProtectionMode;
     
-    // 【新增核心邏輯】：按下 Numpad 的小數點點鍵（.）
-    if (e.key === '.' || e.code === 'NumpadDecimal') {
-        if (!isTransitioning && npcDialogueStep === -1 && !wasteSpeechTriggered) {
-            startPortalTransition(false); // 傳入 false 代表「純刷新地圖，不增加房間數」
+    if (e.key === ' ' && cfg.jumpable) {
+        if (!isJumping) {
+            isJumping = true;
+            jumpTime = 0;
+        } else if (cfg.infiniteJump) {
+            jumpTime = 0; 
         }
     }
 
-    if (e.key === '+' || e.code === 'NumpadAdd') {
-        multiRenderCount = Math.min(10, multiRenderCount + 1);
+    if (e.key === '.' || e.code === 'NumpadDecimal') {
+        if (!isTransitioning && npcDialogueStep === -1 && !wasteSpeechTriggered) {
+            startPortalTransition(false); 
+        }
     }
-    if (e.key === '-' || e.code === 'NumpadSubtract') {
-        multiRenderCount = Math.max(1, multiRenderCount - 1);
+
+    if (e.key === '7' || e.code === 'Numpad7') {
+        devSevenClicks++;
+        if (devSevenClicks >= 3) {
+            devSevenClicks = 0;
+            toggleDevPanel();
+        }
     }
 });
+
+function syncInputsToConfig() {
+    document.getElementById('dev-room').value = roomCount;
+    document.getElementById('dev-fps').value = cfg.fpsLimit;
+    document.getElementById('dev-fov').value = cfg.fov;
+    document.getElementById('dev-walk').value = cfg.walkSpeed;
+    document.getElementById('dev-run').value = cfg.runSpeed;
+    document.getElementById('dev-jump').checked = cfg.jumpable;
+    document.getElementById('dev-infjump').checked = cfg.infiniteJump;
+    document.getElementById('dev-fly').checked = cfg.fly;
+    document.getElementById('dev-noclip').checked = cfg.noclip;
+    document.getElementById('dev-pitch').checked = cfg.pitchEnabled;
+    document.getElementById('dev-map').checked = cfg.minimap;
+    document.getElementById('stat-version').innerText = GAME_VERSION;
+}
+
+function setupDevListeners() {
+    document.getElementById('dev-room').addEventListener('change', (e) => {
+        let val = parseInt(e.target.value);
+        if (!isNaN(val) && val >= 1) { roomCount = val; generateDenseMaze(); }
+    });
+    document.getElementById('dev-fps').addEventListener('change', (e) => {
+        let val = parseInt(e.target.value);
+        if (!isNaN(val) && val >= 0) cfg.fpsLimit = val;
+    });
+    document.getElementById('dev-fov').addEventListener('change', (e) => {
+        let val = parseInt(e.target.value);
+        if (!isNaN(val) && val >= 30 && val <= 150) { cfg.fov = val; updateDirection(); }
+    });
+    document.getElementById('dev-walk').addEventListener('change', (e) => {
+        let val = parseFloat(e.target.value);
+        if (!isNaN(val) && val >= 0) cfg.walkSpeed = val;
+    });
+    document.getElementById('dev-run').addEventListener('change', (e) => {
+        let val = parseFloat(e.target.value);
+        if (!isNaN(val) && val >= 0) cfg.runSpeed = val;
+    });
+    document.getElementById('dev-jump').addEventListener('change', (e) => { cfg.jumpable = e.target.checked; });
+    document.getElementById('dev-infjump').addEventListener('change', (e) => { cfg.infiniteJump = e.target.checked; });
+    document.getElementById('dev-fly').addEventListener('change', (e) => { 
+        cfg.fly = e.target.checked; 
+        if(!cfg.fly) { zOffset = 0; isJumping = false; }
+    });
+    document.getElementById('dev-noclip').addEventListener('change', (e) => { cfg.noclip = e.target.checked; });
+    document.getElementById('dev-pitch').addEventListener('change', (e) => { 
+        cfg.pitchEnabled = e.target.checked; 
+        if(!cfg.pitchEnabled) pitchAngle = 0;
+    });
+    document.getElementById('dev-map').addEventListener('change', (e) => { cfg.minimap = e.target.checked; });
+}
 
 window.addEventListener('keyup', (e) => {
     if (['w', 'W', 'ArrowUp'].includes(e.key)) controls.forward = false;
@@ -367,7 +581,38 @@ window.addEventListener('keyup', (e) => {
     if (['d', 'D', 'ArrowRight'].includes(e.key)) controls.right = false;
     if (e.key === 'Shift') controls.shift = false;
 });
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    // 如果有攝影機矩陣或投影更新邏輯，在此添加
+}
 
+function resetIdleTimer() {
+    lastMoveTime = performance.now();
+    screenFogIntensity = 0;
+}
+
+// 修正後的事件監聽與初始化
+window.addEventListener('resize', resize);
+
+const controls = {
+    forward: false, backward: false, left: false, right: false, shift: false
+};
+
+let posX = 1.5, posY = 1.5, angle = 0, dirX = 1, dirY = 0, planeX = 0, planeY = 0.66;
+let isTransitioning = false, transitionAlpha = 0;
+let lastTime = performance.now();
+
+function updateDirection() {
+    dirX = Math.cos(angle);
+    dirY = Math.sin(angle);
+    planeX = -dirY * (cfg.fov / 90);
+    planeY = dirX * (cfg.fov / 90);
+}
+
+// 確保在初始化時呼叫
+resize();
+updateDirection();
 canvas.addEventListener('click', (e) => {
     if (document.pointerLockElement !== canvas && npcDialogueStep === -1 && !wasteSpeechTriggered) {
         canvas.requestPointerLock();
@@ -376,17 +621,27 @@ canvas.addEventListener('click', (e) => {
     
     if (npcActive && npcDialogueStep >= 0 && !isTyping && !wasteSpeechTriggered) {
         advanceDialogue();
-    } else if (npcActive && npcDialogueStep === -1 && !wasteSpeechTriggered) {
+    } 
+    else if (npcActive && npcDialogueStep === -1 && !wasteSpeechTriggered && !npcTriggeredInThisRoom) {
         let toNpcX = npcX - posX;
         let toNpcY = npcY - posY;
         let dist = Math.sqrt(toNpcX*toNpcX + toNpcY*toNpcY);
+        
         let angleToNpc = Math.atan2(toNpcY, toNpcX);
         let angleDiff = angleToNpc - angle;
         while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
         while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
         
-        if (dist < 1.2 && Math.abs(angleDiff) < 0.4) {
-            document.exitPointerLock();
+        let playerIsBehindNpc = Math.abs(angleDiff) > (Math.PI / 2); 
+        let triggerDistance = playerIsBehindNpc ? 2.2 : 1.5; 
+        let triggerAngle = playerIsBehindNpc ? 1.2 : 0.6;    
+
+        if (dist < triggerDistance && (playerIsBehindNpc || Math.abs(angleDiff) < triggerAngle)) {
+            npcTriggeredInThisRoom = true; 
+            document.exitPointerLock(); 
+            angle = Math.atan2(npcY - posY, npcX - posX);
+            pitchAngle = 0; 
+            updateDirection();
             startNpcDialogueSequence();
         }
     }
@@ -399,6 +654,12 @@ document.addEventListener('mousemove', (e) => {
     if (document.pointerLockElement === canvas && !isTransitioning && npcDialogueStep === -1) {
         let mouseSpeed = 0.0022; 
         angle += e.movementX * mouseSpeed;
+        
+        if (cfg.pitchEnabled) {
+            pitchAngle -= e.movementY * mouseSpeed * 400; 
+            pitchAngle = Math.max(-400, Math.min(400, pitchAngle));
+        }
+        
         updateDirection();
     }
 });
@@ -415,8 +676,11 @@ function advanceDialogue() {
     if (wasteSpeechTriggered) return;
     npcDialogueStep++;
     if (npcDialogueStep < npcTexts.length) {
+        if (npcDialogueStep === npcTexts.length - 1) {
+            showRedSmile = true; 
+        }
         typeText(npcTexts[npcDialogueStep], () => {
-            autoNextTimeout = setTimeout(advanceDialogue, 2000);
+            autoNextTimeout = setTimeout(advanceDialogue, 2500); 
         });
     } else {
         triggerCurseEnd();
@@ -430,6 +694,17 @@ function triggerCurseEnd() {
     setTimeout(() => {
         window.location.href = "about:blank";
     }, 50);
+}
+
+function triggerSmileyJumpscare() {
+    document.exitPointerLock();
+    document.body.classList.add('inverted-end'); 
+    setTimeout(() => {
+        window.close();
+        setTimeout(() => {
+            window.location.href = "about:blank";
+        }, 50);
+    }, 1200); 
 }
 
 function typeText(fullText, callback) {
@@ -553,11 +828,13 @@ function createStaticTextures() {
     textures[5] = pCtx.getImageData(0, 0, texSize, texSize);
 
     const cCanvas = document.createElement('canvas'); cCanvas.width = texSize; cCanvas.height = texSize;
-    const cCtx = cCanvas.getContext('2d');
-    cCtx.fillStyle = '#EAE6DF'; cCtx.fillRect(0, 0, texSize, texSize);
-    cCtx.fillStyle = '#C4C0B9';
-    for(let i=0; i<texSize; i+=32) cCtx.fillRect(0, i, texSize, 2);
-    textures['ceiling'] = cCtx.getImageData(0, 0, texSize, texSize);
+    const cCtx = cCanvas.createElement ? cCanvas : document.createElement('canvas'); 
+    cCtx.width = texSize; cCtx.height = texSize;
+    const cCtx2D = cCtx.getContext('2d');
+    cCtx2D.fillStyle = '#EAE6DF'; cCtx2D.fillRect(0, 0, texSize, texSize);
+    cCtx2D.fillStyle = '#C4C0B9';
+    for(let i=0; i<texSize; i+=32) cCtx2D.fillRect(0, i, texSize, 2);
+    textures['ceiling'] = cCtx2D.getImageData(0, 0, texSize, texSize);
 
     const fCanvas = document.createElement('canvas'); fCanvas.width = texSize; fCanvas.height = texSize;
     const fCtx = fCanvas.getContext('2d');
@@ -573,10 +850,6 @@ function getGrid(x, y) {
     return map[Math.floor(y)][Math.floor(x)];
 }
 
-let isTransitioning = false;
-let transitionAlpha = 0.0;
-
-// 【修改核心】：增加 incrementRoom 參數，預設為 true（正常過關走傳送門）。按點鍵刷新時傳入 false。
 function startPortalTransition(incrementRoom = true) {
     isTransitioning = true;
     transitionAlpha = 0.0;
@@ -586,9 +859,9 @@ function startPortalTransition(incrementRoom = true) {
         if (transitionAlpha >= 1.0) {
             clearInterval(interval);
             
-            // 判斷是否需要增加房間計數
             if (incrementRoom) {
                 roomCount++;
+                totalPortalCount++;
             }
             
             generateDenseMaze();
@@ -596,7 +869,10 @@ function startPortalTransition(incrementRoom = true) {
             posX = 1.5;
             posY = 1.5;
             angle = 0;
+            pitchAngle = 0;
             updateDirection();
+            
+            if(devModeActive) { syncInputsToConfig(); }
             
             const reverseInterval = setInterval(() => {
                 transitionAlpha -= 0.1;
@@ -611,9 +887,19 @@ function startPortalTransition(incrementRoom = true) {
 }
 
 function update(timeScale) {
-    if (isTransitioning) return;
+    if (isTransitioning || document.body.classList.contains('inverted-end')) return;
 
     let currentTime = performance.now();
+    
+    if (devModeActive) {
+        let elapsed = (currentTime - startTime) / 1000;
+        document.getElementById('stat-time').innerText = elapsed.toFixed(1) + "s";
+        document.getElementById('stat-fps').innerText = currentFpsDisplay;
+        let avgFps = totalFrameCount / (elapsed || 1);
+        document.getElementById('stat-avg-fps').innerText = Math.round(avgFps);
+        document.getElementById('stat-portals').innerText = totalPortalCount;
+    }
+
     if (npcActive && npcDialogueStep === -1 && !wasteSpeechTriggered) {
         if (currentTime - lastMoveTime > 5000) {
             screenFogIntensity = Math.min(1.0, screenFogIntensity + 0.0033 * timeScale);
@@ -630,9 +916,34 @@ function update(timeScale) {
         }
     }
 
-    if (npcDialogueStep !== -1 || wasteSpeechTriggered) return;
+    if (npcDialogueStep !== -1) {
+        angle = Math.atan2(npcY - posY, npcX - posX);
+        pitchAngle = 0;
+        updateDirection();
+        return; 
+    }
+    
+    if (wasteSpeechTriggered) return;
 
-    let baseSpeed = controls.shift ? 0.08 : 0.045;
+    // 處理飛行或普通跳躍物理
+    if (cfg.fly) {
+        if (controls.shift) {
+            zOffset = Math.min(600, zOffset + 6 * timeScale);
+        } else if (isJumping) { 
+            zOffset = Math.max(-200, zOffset - 6 * timeScale);
+        }
+    } else if (cfg.jumpable && isJumping) {
+        jumpTime += 0.06 * timeScale;
+        zOffset = Math.sin(jumpTime) * 160; 
+        if (jumpTime >= Math.PI) {
+            isJumping = false;
+            zOffset = 0;
+        }
+    } else {
+        zOffset = 0;
+    }
+
+    let baseSpeed = (controls.shift && !cfg.fly) ? cfg.runSpeed : cfg.walkSpeed;
     let speed = baseSpeed * timeScale;
     let moveX = 0;
     let moveY = 0;
@@ -656,20 +967,52 @@ function update(timeScale) {
                           (pCurrentX === portalX && pCurrentY + 1 === portalY) ||
                           (pCurrentX === portalX && pCurrentY - 1 === portalY);
 
-        if (hitPortal) {
-            startPortalTransition(true); // 正常走傳送門，計數增加
+        if (hitPortal && !cfg.noclip) {
+            startPortalTransition(true); 
             return;
         }
 
-        if (getGrid(nextX + Math.sign(moveX)*0.25, posY) === 0) posX = nextX;
-        if (getGrid(posX, nextY + Math.sign(moveY)*0.25) === 0) posY = nextY;
+        if (cfg.noclip) {
+            posX = nextX;
+            posY = nextY;
+        } else {
+            if (getGrid(nextX + Math.sign(moveX)*0.25, posY) === 0) posX = nextX;
+            if (getGrid(posX, nextY + Math.sign(moveY)*0.25) === 0) posY = nextY;
+        }
     }
 
     if (npcActive && npcDialogueStep === -1) {
-        let targetNpcX = posX - dirX * 0.35;
-        let targetNpcY = posY - dirY * 0.35;
+        let targetNpcX = posX - dirX * 0.7;
+        let targetNpcY = posY - dirY * 0.7;
         npcX += (targetNpcX - npcX) * 0.15 * timeScale;
         npcY += (targetNpcY - npcY) * 0.15 * timeScale;
+    }
+
+    if (smileyActive) {
+        let sToPlayerX = posX - smileyX;
+        let sToPlayerY = posY - smileyY;
+        let sDist = Math.sqrt(sToPlayerX*sToPlayerX + sToPlayerY*sToPlayerY);
+
+        if (sDist < 0.35 && !cfg.noclip) {
+            triggerSmileyJumpscare();
+            return;
+        }
+
+        let angleToSmiley = Math.atan2(sToPlayerY, sToPlayerX);
+        let sAngleDiff = angleToSmiley - angle;
+        while (sAngleDiff < -Math.PI) sAngleDiff += Math.PI * 2;
+        while (sAngleDiff > Math.PI) sAngleDiff -= Math.PI * 2;
+
+        if (Math.abs(sAngleDiff) < 0.55 && sDist < 20) {
+            smileyInVision = true; 
+        } else {
+            smileyInVision = false;
+        }
+
+        if (!smileyInVision) {
+            smileyX += (sToPlayerX / sDist) * smileySpeed * timeScale;
+            smileyY += (sToPlayerY / sDist) * smileySpeed * timeScale;
+        }
     }
 }
 
@@ -683,6 +1026,7 @@ function render() {
     const fTex = textures['floor'].data;
     const cTex = textures['ceiling'].data;
     
+    // 渲染主景 (帶入垂直視角 pitchAngle 與高度 zOffset 偏移量)
     for (let x = 0; x < w; x++) {
         let cameraX = 2 * x / w - 1;
         let rayDirX = dirX + planeX * cameraX;
@@ -713,8 +1057,10 @@ function render() {
         zBuffer[x] = perpWallDist; 
         
         let lineHeight = Math.floor(h / perpWallDist);
-        let drawStart = Math.max(0, -lineHeight / 2 + h / 2);
-        let drawEnd = Math.min(h - 1, lineHeight / 2 + h / 2);
+        
+        let drawStart = Math.max(0, -lineHeight / 2 + h / 2 + pitchAngle + (zOffset / perpWallDist));
+        let drawEnd = Math.min(h - 1, lineHeight / 2 + h / 2 + pitchAngle + (zOffset / perpWallDist));
+        
         let wallX = (side === 0) ? posY + perpWallDist * rayDirY : posX + perpWallDist * rayDirX;
         wallX -= Math.floor(wallX);
         let texX = Math.floor(wallX * texSize);
@@ -723,7 +1069,7 @@ function render() {
         
         const texture = textures[texNum] ? textures[texNum].data : textures[1].data;
         for (let y = Math.floor(drawStart); y < Math.floor(drawEnd); y++) {
-            let d = Math.floor(y * 256 - h * 128 + lineHeight * 128);
+            let d = Math.floor(y * 256 - h * 128 - (pitchAngle * 256) - (zOffset * 256 / perpWallDist) + lineHeight * 128);
             let texY = Math.floor(((d * texSize) / lineHeight) / 256);
             texY = Math.max(0, Math.min(texSize - 1, texY));
             let texPos = (texY * texSize + texX) * 4;
@@ -742,7 +1088,7 @@ function render() {
         let currentDist;
         
         for (let y = 0; y < Math.floor(drawStart); y++) {
-            currentDist = h / (h - 2.0 * y);
+            currentDist = h / (h - 2.0 * (y - pitchAngle - (zOffset / perpWallDist)));
             let weight = currentDist / perpWallDist;
             let currentFloorX = weight * floorXWall + (1.0 - weight) * posX;
             let currentFloorY = weight * floorYWall + (1.0 - weight) * posY;
@@ -753,7 +1099,7 @@ function render() {
         }
         
         for (let y = Math.floor(drawEnd); y < h; y++) {
-            currentDist = h / (2.0 * y - h);
+            currentDist = h / (2.0 * (y - pitchAngle - (zOffset / perpWallDist)) - h);
             let weight = currentDist / perpWallDist;
             let currentFloorX = weight * floorXWall + (1.0 - weight) * posX;
             let currentFloorY = weight * floorYWall + (1.0 - weight) * posY;
@@ -765,7 +1111,11 @@ function render() {
     }
     ctx.putImageData(imgData, 0, 0);
 
-    if (npcActive && npcDialogueStep === -1) {
+    let npcOnScreen = false;
+    let npcScreenX = 0;
+    let npcScaleHeight = 0;
+
+    if (npcActive) {
         let spriteX = npcX - posX;
         let spriteY = npcY - posY;
         let invDet = 1.0 / (planeX * dirY - dirX * planeY);
@@ -779,16 +1129,131 @@ function render() {
             let drawStartX = Math.max(0, -spriteWidth / 2 + spriteScreenX);
             let drawEndX = Math.min(w - 1, spriteWidth / 2 + spriteScreenX);
             
-            ctx.fillStyle = 'rgba(18, 18, 18, 0.96)';
+            npcOnScreen = true;
+            npcScreenX = spriteScreenX;
+            npcScaleHeight = spriteHeight;
+
+            let currentCenterY = h / 2 + pitchAngle + (zOffset / transformY);
+
+            ctx.fillStyle = 'rgba(8, 8, 8, 0.98)'; 
             for (let stripe = drawStartX; stripe < drawEndX; stripe++) {
                 if (transformY < zBuffer[stripe]) {
-                    if (Math.random() < 0.92) {
-                        ctx.beginPath();
-                        ctx.arc(stripe, h / 2 + (Math.random() - 0.5) * spriteHeight * 0.7, 2 + Math.random() * 5, 0, Math.PI * 2);
-                        ctx.fill();
+                    let expr = (stripe - spriteScreenX) / (spriteWidth / 2);
+                    if (Math.abs(expr) <= 1.0) {
+                        let sphereFactor = Math.sqrt(1.0 - expr * expr);
+                        let calculatedHeight = spriteHeight * sphereFactor * 0.75;
+                        ctx.fillRect(stripe, currentCenterY - calculatedHeight / 2, 1, calculatedHeight);
+
+                        ctx.fillStyle = 'rgba(15, 15, 15, 0.95)';
+                        if (Math.random() < 0.85) {
+                            ctx.beginPath();
+                            ctx.arc(stripe, currentCenterY + (Math.random() - 0.5) * calculatedHeight * 1.2, 3 + Math.random() * 6, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
                     }
                 }
             }
+        }
+    }
+
+    if (showRedSmile && npcOnScreen) {
+        ctx.save();
+        ctx.strokeStyle = '#ff0000';
+        ctx.lineWidth = Math.max(5, npcScaleHeight * 0.035); 
+        ctx.lineCap = 'round';
+        
+        let eyeOffset = npcScaleHeight * 0.14;   
+        let eyeSize = npcScaleHeight * 0.045;   
+        let mouthRadius = npcScaleHeight * 0.12; 
+        
+        let toNpcY = npcY - posY;
+        let toNpcX = npcX - posX;
+        let sInvDet = 1.0 / (planeX * dirY - dirX * planeY);
+        let sTransformY = sInvDet * (-planeY * toNpcX + planeX * toNpcY);
+        let centerY = h / 2 - npcScaleHeight * 0.05 + pitchAngle + (zOffset / sTransformY);
+
+        ctx.fillStyle = '#ff0000';
+        ctx.beginPath();
+        ctx.arc(npcScreenX - eyeOffset, centerY, eyeSize, 0, Math.PI * 2);
+        ctx.arc(npcScreenX + eyeOffset, centerY, eyeSize, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(npcScreenX, centerY + npcScaleHeight * 0.08, mouthRadius, 0.1 * Math.PI, 0.9 * Math.PI);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    if (smileyActive) {
+        let sSpriteX = smileyX - posX;
+        let sSpriteY = smileyY - posY;
+        let sInvDet = 1.0 / (planeX * dirY - dirX * planeY);
+        let sTransformX = sInvDet * (dirY * sSpriteX - dirX * sSpriteY);
+        let sTransformY = sInvDet * (-planeY * sSpriteX + planeX * sSpriteY);
+
+        if (sTransformY > 0.1) {
+            let sScreenX = Math.floor((w / 2) * (1 + sTransformX / sTransformY));
+            let sHeight = Math.abs(Math.floor(h / sTransformY));
+            let sWidth = sHeight; 
+
+            ctx.save();
+            let isBehindWall = sTransformY > zBuffer[sScreenX];
+            ctx.globalAlpha = isBehindWall ? 0.35 : 0.95;
+
+            let sCenterY = h / 2 + pitchAngle + (zOffset / sTransformY);
+            let radius = sWidth * 0.45;
+
+            let gradient = ctx.createRadialGradient(
+                sScreenX - radius * 0.3, sCenterY - radius * 0.3, radius * 0.1,
+                sScreenX, sCenterY, radius
+            );
+            gradient.addColorStop(0, '#ffffcc'); 
+            gradient.addColorStop(0.2, '#ffff00');
+            gradient.addColorStop(1, '#ffea00'); 
+
+            ctx.fillStyle = gradient;
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = Math.max(2, sHeight * 0.012);
+
+            ctx.beginPath();
+            ctx.arc(sScreenX, sCenterY, radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#000000';
+            let eyeW = radius * 0.16;
+            let eyeH = radius * 0.32;
+            let offsetX = radius * 0.32;
+            let offsetY = radius * 0.22;
+
+            ctx.beginPath();
+            ctx.ellipse(sScreenX - offsetX, sCenterY - offsetY, eyeW, eyeH, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(sScreenX + offsetX, sCenterY - offsetY, eyeW, eyeH, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = Math.max(3, sHeight * 0.018);
+            ctx.lineCap = 'round';
+
+            ctx.beginPath();
+            ctx.arc(sScreenX, sCenterY - radius * 0.05, radius * 0.65, 0.18 * Math.PI, 0.82 * Math.PI);
+            ctx.stroke();
+
+            let leftSmileX = sScreenX - radius * 0.65 * Math.cos(0.18 * Math.PI);
+            let leftSmileY = sCenterY - radius * 0.05 + radius * 0.65 * Math.sin(0.18 * Math.PI);
+            ctx.beginPath();
+            ctx.arc(leftSmileX - radius * 0.04, leftSmileY - radius * 0.04, radius * 0.08, 1.1 * Math.PI, 1.9 * Math.PI);
+            ctx.stroke();
+
+            let rightSmileX = sScreenX + radius * 0.65 * Math.cos(0.18 * Math.PI);
+            let rightSmileY = sCenterY - radius * 0.05 + radius * 0.65 * Math.sin(0.18 * Math.PI);
+            ctx.beginPath();
+            ctx.arc(rightSmileX + radius * 0.04, rightSmileY - radius * 0.04, radius * 0.08, 1.1 * Math.PI, 1.9 * Math.PI);
+            ctx.stroke();
+
+            ctx.restore();
         }
     }
 
@@ -817,39 +1282,98 @@ function render() {
         ctx.fillStyle = `rgba(0, 0, 0, ${transitionAlpha})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
-}
 
-function resize() {
-    canvas.width = 1920;
-    canvas.height = 1080;
+    // --- DevMode Minimap 地圖實時繪製管線 ---
+    if (cfg.minimap) {
+        ctx.save();
+        let size = 6; 
+        let offsetX = 30;
+        let offsetY = 30;
+        
+        ctx.fillStyle = 'rgba(0, 40, 0, 0.65)';
+        ctx.fillRect(offsetX - 5, offsetY - 5, MAP_SIZE * size + 10, MAP_SIZE * size + 10);
+        ctx.strokeStyle = '#00ff00';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(offsetX - 5, offsetY - 5, MAP_SIZE * size + 10, MAP_SIZE * size + 10);
+
+        for (let y = 0; y < MAP_SIZE; y++) {
+            for (let x = 0; x < MAP_SIZE; x++) {
+                if (map[y][x] === 1) ctx.fillStyle = '#005500';
+                else if (map[y][x] === 2) ctx.fillStyle = '#00ffff';
+                else if (map[y][x] === 5) ctx.fillStyle = '#00ff00';
+                else ctx.fillStyle = 'rgba(0,0,0,0)';
+
+                if (map[y][x] !== 0) {
+                    ctx.fillRect(offsetX + x * size, offsetY + y * size, size - 1, size - 1);
+                }
+            }
+        }
+
+        // 玩家定位點與面朝方向指引線
+        ctx.fillStyle = '#ff0000';
+        ctx.beginPath();
+        ctx.arc(offsetX + posX * size, offsetY + posY * size, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#ff0000';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(offsetX + posX * size, offsetY + posY * size);
+        ctx.lineTo(offsetX + posX * size + dirX * 10, offsetY + posY * size + dirY * 10);
+        ctx.stroke();
+
+        // 追逐者 Smiley 地圖定位紅點
+        if (smileyActive) {
+            ctx.fillStyle = '#ffea00';
+            ctx.beginPath();
+            ctx.arc(offsetX + smileyX * size, offsetY + smileyY * size, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+    }
 }
-window.addEventListener('resize', resize);
 
 function frameLoop() {
     let now = performance.now();
     let dt = now - lastTime;
-    lastTime = now;
     
+    if (cfg.fpsLimit > 0) {
+        let targetInterval = 1000 / cfg.fpsLimit;
+        if (dt < targetInterval) {
+            requestAnimationFrame(frameLoop);
+            return;
+        }
+    }
+
+    lastTime = now;
+    totalFrameCount++;
+    fpsCountThisSecond++;
+
+    if (now - lastFpsUpdateTime >= 1000) {
+        currentFpsDisplay = fpsCountThisSecond;
+        fpsCountThisSecond = 0;
+        lastFpsUpdateTime = now;
+    }
+
     if (dt > 100) dt = 16.66;
     let timeScale = dt / 16.66;
 
     update(timeScale);
-
-    for (let i = 0; i < multiRenderCount; i++) {
-        render();
-    }
+    render();
 
     requestAnimationFrame(frameLoop);
 }
 
 function startLoop() {
     lastTime = performance.now();
+    startTime = performance.now();
     requestAnimationFrame(frameLoop);
 }
 
 if (localStorage.getItem('the_dust_curse') !== 'true') {
     generateDenseMaze();
     resize();
+    setupDevListeners();
     startLoop();
 }
 </script>
