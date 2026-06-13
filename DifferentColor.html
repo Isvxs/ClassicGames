@@ -3,11 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Color Match Pro - Precision Edition</title>
+    <title>Color Match Pro - Advanced iOS Edition</title>
     <style>
+        /* 載入 Roblox 官方 Builder Sans Medium 字型 */
+        @font-face {
+            font-family: 'BuilderSans-Medium';
+            src: local('BuilderSans-Medium'), local('BuilderSansMedium'), url('BuilderSans-Medium-500.otf') format('opentype');
+            font-weight: 500;
+        }
+
         :root {
             --ios-bg: #f2f2f7;
-            --ios-card: rgba(255, 255, 255, 0.8);
+            --ios-card: rgba(255, 255, 255, 0.85);
             --ios-label: #000000;
             --ios-secondary-label: #8e8e93;
             --ios-border: rgba(0, 0, 0, 0.08);
@@ -15,9 +22,8 @@
             --ios-success: #34c759;
             --ios-warning: #ff9500;
             --ios-error: #ff3b30;
-            
+            --ios-menu-item-bg: rgba(0, 0, 0, 0.03);
             --spring-easing: cubic-bezier(0.25, 1, 0.5, 1);
-            --smooth-duration: 0.5s;
         }
 
         @media (prefers-color-scheme: dark) {
@@ -27,17 +33,17 @@
                 --ios-label: #ffffff;
                 --ios-secondary-label: #aeaeae;
                 --ios-border: rgba(255, 255, 255, 0.1);
+                --ios-menu-item-bg: rgba(255, 255, 255, 0.04);
             }
         }
 
         * {
             box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0; padding: 0;
+            font-family: 'BuilderSans-Medium', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-weight: 500 !important;
             -webkit-font-smoothing: antialiased;
-            user-select: none;
-            -webkit-user-select: none;
+            user-select: none; -webkit-user-select: none;
         }
 
         body {
@@ -48,11 +54,19 @@
             align-items: center;
             min-height: 100vh;
             padding: 20px;
+            overflow: hidden;
         }
 
-        .app-container {
+        .app-window {
             width: 100%;
-            max-width: 400px;
+            max-width: 420px;
+            position: relative;
+            /* 讓色盲濾鏡套用在具備過渡動畫的屬性上，達成流暢淡出淡入 */
+            transition: filter 0.6s var(--spring-easing);
+        }
+
+        .screen {
+            width: 100%;
             background: var(--ios-card);
             backdrop-filter: blur(30px);
             -webkit-backdrop-filter: blur(30px);
@@ -60,326 +74,532 @@
             border: 1px solid var(--ios-border);
             padding: 24px;
             box-shadow: 0 14px 40px rgba(0,0,0,0.06);
-            animation: app-intro 0.8s var(--spring-easing);
+            display: none;
+            position: absolute;
+            top: 0; left: 0;
+            transform: translateY(30px);
+            opacity: 0;
+            transition: transform 0.6s var(--spring-easing), opacity 0.4s ease;
         }
 
-        header {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        header h1 {
-            font-size: 1.3rem;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-        }
-
-        header p {
-            font-size: 0.85rem;
-            color: var(--ios-secondary-label);
-            margin-top: 4px;
-        }
-
-        .stage {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            background: rgba(0,0,0,0.03);
-            padding: 10px;
-            border-radius: 24px;
-            margin-bottom: 20px;
-        }
-
-        @media (prefers-color-scheme: dark) {
-            .stage { background: rgba(255,255,255,0.03); }
-        }
-
-        .color-pane {
-            height: 140px;
-            border-radius: 18px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-            padding: 10px;
-            transition: transform 0.6s var(--spring-easing);
-            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
-        }
-
-        .color-pane.reveal {
-            transform: scale(1.03);
-        }
-
-        .pane-info {
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            padding: 6px 10px;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: #000;
-            display: flex;
-            justify-content: space-between;
-        }
-
-        /* 調色盤區域 */
-        .picker-section {
-            background: rgba(0,0,0,0.02);
-            border-radius: 28px;
-            padding: 20px;
-            margin-bottom: 20px;
-            border: 1px solid var(--ios-border);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 20px;
-        }
-
-        @media (prefers-color-scheme: dark) {
-            .picker-section { background: rgba(255,255,255,0.02); }
-        }
-
-        /* 修正漸層色相環：明確指定 conic-gradient 從正上方開始 (from 0deg) */
-        .color-wheel-wrapper {
+        .screen.active {
+            display: block;
             position: relative;
-            width: 180px;
-            height: 180px;
-            cursor: crosshair;
+            transform: translateY(0);
+            opacity: 1;
         }
 
-        .color-wheel {
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            background: conic-gradient(from 0deg, red, yellow, lime, cyan, blue, magenta, red);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-        }
+        header { text-align: center; margin-bottom: 20px; }
+        header h1 { font-size: 1.4rem; letter-spacing: -0.5px; }
+        header p { font-size: 0.85rem; color: var(--ios-secondary-label); margin-top: 4px; }
 
-        /* 白色向內漸變層，優化白光飽和度模型 */
-        .color-wheel::after {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            border-radius: 50%;
-            background: radial-gradient(circle, #fff 0%, rgba(255,255,255,0) 85%);
+        .menu-options { display: flex; flex-direction: column; gap: 12px; margin: 24px 0; }
+        
+        .ios-select-container {
+            background: rgba(0,0,0,0.02);
+            border: 1px solid var(--ios-border);
+            border-radius: 14px;
+            overflow: hidden;
+            transition: background 0.3s ease;
         }
+        @media (prefers-color-scheme: dark) { .ios-select-container { background: rgba(255,255,255,0.02); } }
 
-        .wheel-handle {
-            position: absolute;
-            width: 24px;
-            height: 24px;
-            background: #ffffff;
-            border-radius: 50%;
-            box-shadow: 0 3px 8px rgba(0,0,0,0.3), inset 0 0 0 1px rgba(0,0,0,0.1);
-            top: 50%; left: 50%;
-            margin-top: -12px; margin-left: -12px;
-            pointer-events: none;
-            transition: transform 0.1s var(--spring-easing);
-            z-index: 10;
-        }
-
-        .slider-container {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .ios-slider {
-            -webkit-appearance: none;
-            width: 100%;
-            height: 8px;
-            border-radius: 4px;
-            outline: none;
-            background: linear-gradient(to right, #000, #fff);
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
-        }
-
-        .ios-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 22px;
-            height: 22px;
-            border-radius: 50%;
-            background: #ffffff;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-            cursor: pointer;
-            transition: transform 0.1s;
-        }
-
-        .ios-slider::-webkit-slider-thumb:active {
-            transform: scale(1.15);
-        }
-
-        .meta-display {
-            width: 100%;
+        .ios-select-header {
+            padding: 14px 16px;
             display: flex;
             justify-content: space-between;
-            font-size: 0.8rem;
+            align-items: center;
+            cursor: pointer;
+        }
+        .ios-select-header label { font-size: 0.95rem; cursor: pointer; }
+        
+        .ios-select-value {
+            color: var(--ios-primary);
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .ios-arrow {
+            font-size: 0.75rem;
             color: var(--ios-secondary-label);
-            font-variant-numeric: tabular-nums;
+            transition: transform 0.4s var(--spring-easing);
+        }
+        .ios-select-container.open .ios-arrow {
+            transform: rotate(90deg);
+        }
+
+        .ios-select-options {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s var(--spring-easing);
+            background: rgba(0, 0, 0, 0.01);
+        }
+        @media (prefers-color-scheme: dark) { .ios-select-options { background: rgba(255, 255, 255, 0.01); } }
+        
+        .ios-select-container.open .ios-select-options {
+            max-height: 320px; /* 放寬高度以完整顯示所有時間選項 */
+        }
+
+        .ios-option-item {
+            padding: 12px 20px;
+            font-size: 0.9rem;
+            color: var(--ios-label);
             border-top: 1px solid var(--ios-border);
-            padding-top: 12px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+        .ios-option-item:active {
+            background: var(--ios-menu-item-bg);
+        }
+        .ios-option-item.selected {
+            color: var(--ios-primary);
+        }
+        .ios-option-item.selected::after {
+            content: '✓';
+            font-size: 0.85rem;
+            color: var(--ios-primary);
         }
 
         .ios-btn {
-            width: 100%;
-            background: var(--ios-primary);
-            color: #ffffff;
-            border: none;
-            padding: 16px;
-            border-radius: 16px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
+            width: 100%; background: var(--ios-primary); color: #ffffff;
+            border: none; padding: 16px; border-radius: 16px;
+            font-size: 1rem; cursor: pointer;
             transition: all 0.4s var(--spring-easing);
             box-shadow: 0 4px 12px rgba(0, 122, 255, 0.15);
+            display: flex; justify-content: center; align-items: center; gap: 8px;
+        }
+        .ios-btn:active { transform: scale(0.97); opacity: 0.85; }
+        .ios-btn.secondary {
+            background: rgba(0,0,0,0.04); color: var(--ios-label); box-shadow: none;
+        }
+        @media (prefers-color-scheme: dark) {
+            .ios-btn.secondary { background: rgba(255,255,255,0.06); }
+        }
+        .ios-btn.next-state { background: var(--ios-label); color: var(--ios-bg); box-shadow: none; }
+
+        .hud-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 16px; padding: 0 4px; font-size: 0.85rem;
+        }
+        .hud-tag { background: rgba(0,0,0,0.04); padding: 4px 10px; border-radius: 20px; }
+        @media (prefers-color-scheme: dark) { .hud-tag { background: rgba(255,255,255,0.06); } }
+
+        .stage {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+            background: rgba(0,0,0,0.03); padding: 10px; border-radius: 24px; margin-bottom: 16px;
+        }
+        @media (prefers-color-scheme: dark) { .stage { background: rgba(255,255,255,0.03); } }
+
+        .color-pane {
+            height: 120px; border-radius: 18px; overflow: hidden;
+            display: flex; flex-direction: column; justify-content: flex-end; padding: 10px;
+            transition: transform 0.6s var(--spring-easing);
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
+        }
+        .color-pane.reveal { transform: scale(1.03); }
+        .pane-info {
+            background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px); padding: 6px 10px; border-radius: 12px;
+            font-size: 0.75rem; color: #000; display: flex; justify-content: space-between;
         }
 
-        .ios-btn:active {
-            transform: scale(0.97);
-            opacity: 0.85;
+        .picker-section {
+            background: rgba(0,0,0,0.02); border-radius: 28px; padding: 18px;
+            margin-bottom: 16px; border: 1px solid var(--ios-border);
+            display: flex; flex-direction: column; align-items: center; gap: 16px;
         }
+        @media (prefers-color-scheme: dark) { .picker-section { background: rgba(255,255,255,0.02); } }
 
-        .ios-btn.next-state {
-            background: var(--ios-label);
-            color: var(--ios-bg);
-            box-shadow: none;
+        .color-wheel-wrapper {
+            position: relative; width: 180px; height: 180px;
+        }
+        .color-wheel { width: 100%; height: 100%; border-radius: 50%; box-shadow: 0 4px 20px rgba(0,0,0,0.08); position: relative; }
+        
+        .wheel-hsv { background: conic-gradient(from 0deg, red, yellow, lime, cyan, blue, magenta, red); }
+        .wheel-hsv::after { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 50%; background: radial-gradient(circle, #fff 0%, rgba(255,255,255,0) 85%); }
+        
+        .wheel-lab { background: #fff; overflow: hidden; }
+
+        .wheel-handle {
+            position: absolute; width: 24px; height: 24px; background: #ffffff; border-radius: 50%;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.3), inset 0 0 0 1px rgba(0,0,0,0.1);
+            top: 50%; left: 50%; margin-top: -12px; margin-left: -12px;
+            pointer-events: none; transition: transform 0.1s var(--spring-easing); z-index: 10;
+        }
+        
+        .disabled-layer { pointer-events: none; opacity: 0.4 !important; cursor: not-allowed; }
+
+        .slider-container { width: 100%; display: flex; align-items: center; gap: 12px; }
+        .ios-slider {
+            -webkit-appearance: none; width: 100%; height: 8px; border-radius: 4px; outline: none;
+            background: linear-gradient(to right, #000, #fff); box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .ios-slider::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
+            background: #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.2); cursor: pointer; transition: transform 0.1s;
+        }
+        .ios-slider::-webkit-slider-thumb:active { transform: scale(1.15); }
+
+        .meta-display {
+            width: 100%; display: flex; justify-content: space-between; font-size: 0.8rem;
+            color: var(--ios-secondary-label); font-variant-numeric: tabular-nums;
+            border-top: 1px solid var(--ios-border); padding-top: 10px;
         }
 
         .result-panel {
-            max-height: 0;
-            opacity: 0;
-            overflow: hidden;
+            max-height: 0; opacity: 0; overflow: hidden;
             transition: max-height 0.6s var(--spring-easing), opacity 0.4s ease, margin-top 0.4s ease;
-            margin-top: 0;
-            background: rgba(0,0,0,0.02);
-            border-radius: 20px;
+            margin-top: 0; background: rgba(0,0,0,0.02); border-radius: 20px;
         }
+        @media (prefers-color-scheme: dark) { .result-panel { background: rgba(255,255,255,0.02); } }
+        .result-panel.show { max-height: 100px; opacity: 1; margin-top: 14px; padding: 14px; border: 1px solid var(--ios-border); }
 
-        @media (prefers-color-scheme: dark) {
-            .result-panel { background: rgba(255,255,255,0.02); }
-        }
+        .result-grid-three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
+        .result-item .num { font-size: 1.3rem; letter-spacing: -0.5px; font-variant-numeric: tabular-nums; }
+        .result-item .label { font-size: 0.7rem; color: var(--ios-secondary-label); text-transform: uppercase; margin-top: 4px; }
 
-        .result-panel.show {
-            max-height: 100px;
-            opacity: 1;
-            margin-top: 16px;
-            padding: 14px;
-            border: 1px solid var(--ios-border);
-        }
-
-        .result-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-            text-align: center;
-        }
-
-        .result-item .num {
-            font-size: 1.5rem;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .result-item .label {
-            font-size: 0.7rem;
-            font-weight: 500;
-            color: var(--ios-secondary-label);
-            text-transform: uppercase;
-        }
-
-        @keyframes app-intro {
-            from { opacity: 0; transform: translateY(30px) scale(0.97); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
-        }
+        /* SVG 色盲模擬濾鏡宣告 */
+        .filter-protanopia { filter: url('#protanopia-filter'); }
+        .filter-deuteranopia { filter: url('#deuteranopia-filter'); }
+        .filter-tritanopia { filter: url('#tritanopia-filter'); }
     </style>
 </head>
 <body>
 
-    <div class="app-container">
-        <header>
-            <h1>色彩對比</h1>
-            <p>使用下方色盤揉合出目標色彩</p>
-        </header>
+    <svg style="position: absolute; width: 0; height: 0;">
+        <defs>
+            <filter id="protanopia-filter">
+                <feColorMatrix type="matrix" values="0.567, 0.433, 0,     0, 0, 0.558, 0.442, 0,     0, 0, 0,     0.242, 0.758, 0, 0, 0,     0,     0,     1, 0"/>
+            </filter>
+            <filter id="deuteranopia-filter">
+                <feColorMatrix type="matrix" values="0.625, 0.375, 0,   0, 0, 0.7,   0.3,   0,   0, 0, 0,     0.3,   0.7, 0, 0, 0,     0,     0,   1, 0"/>
+            </filter>
+            <filter id="tritanopia-filter">
+                <feColorMatrix type="matrix" values="0.95,  0.05,  0,     0, 0, 0,     0.433, 0.567, 0, 0, 0,     0.475, 0.525, 0, 0, 0,     0,     0,     1, 0"/>
+            </filter>
+        </defs>
+    </svg>
 
-        <div class="stage">
-            <div id="targetPane" class="color-pane">
-                <div class="pane-info">
-                    <span>目標</span>
-                    <span id="targetHex">#??????</span>
+    <div class="app-window" id="appWindow">
+        
+        <div id="menuScreen" class="screen active">
+            <header>
+                <h1>Color Match Pro</h1>
+                <p>極致色彩感知系統</p>
+            </header>
+            <div class="menu-options">
+                
+                <div class="ios-select-container" id="containerEngine">
+                    <div class="ios-select-header" onclick="toggleSelect('containerEngine')">
+                        <label>調色盤架構 (Engine)</label>
+                        <div class="ios-select-value"><span id="valEngine">Standard (HSV)</span><span class="ios-arrow">❯</span></div>
+                    </div>
+                    <div class="ios-select-options">
+                        <div class="ios-option-item selected" data-value="HSV" onclick="selectOption('Engine', this)">Standard (HSV)</div>
+                        <div class="ios-option-item" data-value="LAB" onclick="selectOption('Engine', this)">Pro (CIELAB 均勻空間)</div>
+                    </div>
+                </div>
+
+                <div class="ios-select-container" id="containerTimer">
+                    <div class="ios-select-header" onclick="toggleSelect('containerTimer')">
+                        <label>時間機制 (Timer)</label>
+                        <div class="ios-select-value"><span id="valTimer">關閉常規模式</span><span class="ios-arrow">❯</span></div>
+                    </div>
+                    <div class="ios-select-options">
+                        <div class="ios-option-item selected" data-value="OFF" onclick="selectOption('Timer', this)">關閉常規模式</div>
+                        <div class="ios-option-item" data-value="30" onclick="selectOption('Timer', this)">30 秒</div>
+                        <div class="ios-option-item" data-value="20" onclick="selectOption('Timer', this)">20 秒</div>
+                        <div class="ios-option-item" data-value="15" onclick="selectOption('Timer', this)">15 秒</div>
+                        <div class="ios-option-item" data-value="10" onclick="selectOption('Timer', this)">10 秒</div>
+                        <div class="ios-option-item" data-value="5" onclick="selectOption('Timer', this)">5 秒</div>
+                        <div class="ios-option-item" data-value="2" onclick="selectOption('Timer', this)">2 秒</div>
+                    </div>
+                </div>
+
+                <div class="ios-select-container" id="containerHardcore">
+                    <div class="ios-select-header" onclick="toggleSelect('containerHardcore')">
+                        <label>硬核枷鎖 (Hardcore)</label>
+                        <div class="ios-select-value"><span id="valHardcore">NONE (無限制)</span><span class="ios-arrow">❯</span></div>
+                    </div>
+                    <div class="ios-select-options">
+                        <div class="ios-option-item selected" data-value="NONE" onclick="selectOption('Hardcore', this)">NONE (無限制)</div>
+                        <div class="ios-option-item" data-value="HUE_LOCK" onclick="selectOption('Hardcore', this)">鎖定色相 (Hue Lock)</div>
+                        <div class="ios-option-item" data-value="BRIGHT_LOCK" onclick="selectOption('Hardcore', this)">鎖定明度 (Brightness Lock)</div>
+                        <div class="ios-option-item" data-value="MOVE_LIMIT" onclick="selectOption('Hardcore', this)">極限操縱 (限 5 次變動)</div>
+                    </div>
+                </div>
+
+                <div class="ios-select-container" id="containerColorblind">
+                    <div class="ios-select-header" onclick="toggleSelect('containerColorblind')">
+                        <label>視覺光譜模擬 (Colorblind)</label>
+                        <div class="ios-select-value"><span id="valColorblind">正常視覺 (Normal)</span><span class="ios-arrow">❯</span></div>
+                    </div>
+                    <div class="ios-select-options">
+                        <div class="ios-option-item selected" data-value="NONE" onclick="selectOption('Colorblind', this)">正常視覺 (Normal)</div>
+                        <div class="ios-option-item" data-value="PROTANOPIA" onclick="selectOption('Colorblind', this)">紅色盲 (Protanopia)</div>
+                        <div class="ios-option-item" data-value="DEUTERANOPIA" onclick="selectOption('Colorblind', this)">綠色盲 (Deuteranopia)</div>
+                        <div class="ios-option-item" data-value="TRITANOPIA" onclick="selectOption('Colorblind', this)">藍色盲 (Tritanopia)</div>
+                    </div>
+                </div>
+
+            </div>
+            <button id="startBtn" class="ios-btn">開始感知模組</button>
+        </div>
+
+        <div id="gameScreen" class="screen">
+            <div class="hud-bar">
+                <span id="hudTimer" class="hud-tag">TIME: --</span>
+                <span id="hudModifier" class="hud-tag">NORMAL</span>
+            </div>
+
+            <div class="stage">
+                <div id="targetPane" class="color-pane">
+                    <div class="pane-info"><span>目標</span><span id="targetHex">#??????</span></div>
+                </div>
+                <div id="playerPane" class="color-pane">
+                    <div class="pane-info"><span>當前</span><span id="playerHex">#FFFFFF</span></div>
                 </div>
             </div>
-            <div id="playerPane" class="color-pane">
-                <div class="pane-info">
-                    <span>你的調配</span>
-                    <span id="playerHex">#FFFFFF</span>
+
+            <div class="picker-section">
+                <div class="color-wheel-wrapper" id="wheelWrapper">
+                    <div id="colorWheelCanvas" class="color-wheel"></div>
+                    <div class="wheel-handle" id="wheelHandle"></div>
+                </div>
+                
+                <div class="slider-container" id="sliderWrapper">
+                    <span id="sliderLabel" style="font-size:0.8rem; color:var(--ios-secondary-label); width:40px;">亮度</span>
+                    <input type="range" id="brightnessSlider" class="ios-slider" min="0" max="100" value="100">
+                </div>
+
+                <div class="meta-display">
+                    <span id="metaHex">#FFFFFF</span>
+                    <span id="metaInfo">RGB: 255, 255, 255</span>
+                </div>
+            </div>
+
+            <button id="actionBtn" class="ios-btn">檢查真實色差</button>
+            <button id="backBtn" class="ios-btn secondary" style="margin-top: 10px;">返回選單</button>
+
+            <div id="resultPanel" class="result-panel">
+                <div class="result-grid-three">
+                    <div class="result-item">
+                        <div id="ratingText" class="num">-</div>
+                        <div class="label">評級</div>
+                    </div>
+                    <div class="result-item">
+                        <div id="accuracyNum" class="num">0%</div>
+                        <div class="label">吻合度</div>
+                    </div>
+                    <div class="result-item">
+                        <div id="finalScoreNum" class="num">0</div>
+                        <div class="label">分數</div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="picker-section">
-            <div class="color-wheel-wrapper" id="wheelWrapper">
-                <div class="color-wheel"></div>
-                <div class="wheel-handle" id="wheelHandle"></div>
-            </div>
-            
-            <div class="slider-container">
-                <span style="font-size:0.8rem; color:var(--ios-secondary-label)">亮度</span>
-                <input type="range" id="brightnessSlider" class="ios-slider" min="0" max="100" value="100">
-            </div>
-
-            <div class="meta-display">
-                <span id="metaHex">#FFFFFF</span>
-                <span id="metaRgb">RGB: 255, 255, 255</span>
-            </div>
-        </div>
-
-        <button id="actionBtn" class="ios-btn">檢查色差</button>
-
-        <div id="resultPanel" class="result-panel">
-            <div class="result-grid">
-                <div class="result-item">
-                    <div id="accuracyNum" class="num">0%</div>
-                    <div class="label">吻合度</div>
-                </div>
-                <div class="result-item">
-                    <div id="ratingText" class="num" style="font-size: 1.2rem; line-height: 1.5rem;">-</div>
-                    <div class="label">評級</div>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script>
+        let selectedEngine = "HSV";
+        let selectedTimer = "OFF";
+        let selectedHardcore = "NONE";
+        let selectedColorblind = "NONE";
+
+        // Devmode 單局生命週期
+        let isDevMode = false;
+        let rightClickCount = 0;
+
+        // 局內右鍵連擊 3 次事件
+        window.addEventListener('contextmenu', (e) => {
+            if (gameScreen.classList.contains('active') && !isRevealed) {
+                e.preventDefault();
+                rightClickCount++;
+                if (rightClickCount === 3) {
+                    isDevMode = true;
+                }
+            }
+        });
+
+        function toggleSelect(containerId) {
+            const el = document.getElementById(containerId);
+            const isOpen = el.classList.contains('open');
+            document.querySelectorAll('.ios-select-container').forEach(c => c.classList.remove('open'));
+            if (!isOpen) el.classList.add('open');
+        }
+
+        function selectOption(type, element) {
+            const container = document.getElementById(`container${type}`);
+            container.querySelectorAll('.ios-option-item').forEach(item => item.classList.remove('selected'));
+            element.classList.add('selected');
+            
+            const value = element.getAttribute('data-value');
+            document.getElementById(`val${type}`).innerText = element.innerText;
+            
+            if(type === 'Engine') selectedEngine = value;
+            if(type === 'Timer') selectedTimer = value;
+            if(type === 'Hardcore') selectedHardcore = value;
+            if(type === 'Colorblind') selectedColorblind = value;
+
+            container.classList.remove('open');
+        }
+
+        const appWindow = document.getElementById('appWindow');
+        const menuScreen = document.getElementById('menuScreen');
+        const gameScreen = document.getElementById('gameScreen');
+        const startBtn = document.getElementById('startBtn');
+        const actionBtn = document.getElementById('actionBtn');
+        const backBtn = document.getElementById('backBtn');
+        
         const targetPane = document.getElementById('targetPane');
         const playerPane = document.getElementById('playerPane');
         const targetHex = document.getElementById('targetHex');
         const playerHex = document.getElementById('playerHex');
-        
         const wheelWrapper = document.getElementById('wheelWrapper');
+        const colorWheelCanvas = document.getElementById('colorWheelCanvas');
         const wheelHandle = document.getElementById('wheelHandle');
         const brightnessSlider = document.getElementById('brightnessSlider');
-        
+        const sliderLabel = document.getElementById('sliderLabel');
         const metaHex = document.getElementById('metaHex');
-        const metaRgb = document.getElementById('metaRgb');
-        const actionBtn = document.getElementById('actionBtn');
+        const metaInfo = document.getElementById('metaInfo');
+        
+        const hudTimer = document.getElementById('hudTimer');
+        const hudModifier = document.getElementById('hudModifier');
         const resultPanel = document.getElementById('resultPanel');
-        const accuracyNum = document.getElementById('accuracyNum');
         const ratingText = document.getElementById('ratingText');
+        const accuracyNum = document.getElementById('accuracyNum');
+        const finalScoreNum = document.getElementById('finalScoreNum');
 
+        let engine = 'HSV';
+        let timeSetting = 'OFF'; 
+        let hardcoreMode = 'NONE';
         let targetColor = { r: 0, g: 0, b: 0 };
         let playerColor = { r: 255, g: 255, b: 255 };
         let isRevealed = false;
-
-        let currentHue = 0;
-        let currentSat = 0;
-        let currentVal = 100;
         let isDragging = false;
+
+        let timeLeft = 30.0;
+        let timerInterval = null;
+        let isTimerRunning = false; 
+        let moveCount = 0;
+        const maxMoves = 5;
+
+        let currentHue = 0, currentSat = 0, currentVal = 100;
+        let labA = 0, labB = 0, labL = 100;
+
+        // 套用全域濾鏡方法
+        function applyColorblindFilter() {
+            appWindow.className = "app-window";
+            if(selectedColorblind !== 'NONE') {
+                appWindow.classList.add(`filter-${selectedColorblind.toLowerCase()}`);
+            }
+        }
+
+        function switchScreen(toScreen) {
+            const activeScreen = document.querySelector('.screen.active');
+            if (activeScreen) {
+                activeScreen.style.opacity = '0';
+                activeScreen.style.transform = 'translateY(-20px)';
+                setTimeout(() => {
+                    activeScreen.classList.remove('active');
+                    toScreen.classList.add('active');
+                    setTimeout(() => {
+                        toScreen.style.opacity = '1';
+                        toScreen.style.transform = 'translateY(0)';
+                    }, 50);
+                }, 400);
+            }
+        }
+
+        startBtn.addEventListener('click', () => {
+            engine = selectedEngine;
+            timeSetting = selectedTimer;
+            hardcoreMode = selectedHardcore;
+            
+            // 進入遊戲時，淡入色盲濾鏡
+            applyColorblindFilter();
+
+            const oldCanvas = document.getElementById('labCanvasElement');
+            if (oldCanvas) oldCanvas.remove();
+
+            if(engine === 'LAB') {
+                colorWheelCanvas.className = "color-wheel wheel-lab";
+                sliderLabel.innerText = "明度 L";
+                renderLabCanvasBackground();
+            } else {
+                colorWheelCanvas.className = "color-wheel wheel-hsv";
+                colorWheelCanvas.style.background = ""; 
+                sliderLabel.innerText = "亮度";
+            }
+
+            wheelWrapper.classList.remove('disabled-layer');
+            brightnessSlider.disabled = false;
+            document.getElementById('sliderWrapper').classList.remove('disabled-layer');
+            
+            if(hardcoreMode === 'HUE_LOCK') {
+                wheelWrapper.classList.add('disabled-layer');
+            } else if(hardcoreMode === 'BRIGHT_LOCK') {
+                brightnessSlider.disabled = true;
+                document.getElementById('sliderWrapper').classList.add('disabled-layer');
+            }
+
+            switchScreen(gameScreen);
+            initLevel();
+        });
+
+        backBtn.addEventListener('click', () => {
+            clearInterval(timerInterval);
+            appWindow.className = "app-window"; // 退出時徹底清空色盲濾鏡
+            switchScreen(menuScreen);
+        });
+
+        function renderLabCanvasBackground() {
+            const canvas = document.createElement('canvas');
+            canvas.id = 'labCanvasElement';
+            canvas.style.width = '100%';
+            canvas.style.height = '100%';
+            canvas.style.borderRadius = '50%';
+            colorWheelCanvas.appendChild(canvas);
+            
+            canvas.width = 180; canvas.height = 180;
+            const ctx = canvas.getContext('2d');
+            const imgData = ctx.createImageData(180, 180);
+            
+            for(let y=0; y<180; y++) {
+                for(let x=0; x<180; x++) {
+                    const idx = (y * 180 + x) * 4;
+                    const dx = x - 90; const dy = y - 90;
+                    if(dx*dx + dy*dy <= 90*90) {
+                        const a = (dx / 90) * 128;
+                        const b = (-dy / 90) * 128;
+                        const rgb = labToRgb(70, a, b);
+                        imgData.data[idx] = rgb.r;
+                        imgData.data[idx+1] = rgb.g;
+                        imgData.data[idx+2] = rgb.b;
+                        imgData.data[idx+3] = 255;
+                    } else {
+                        imgData.data[idx+3] = 0;
+                    }
+                }
+            }
+            ctx.putImageData(imgData, 0, 0);
+        }
 
         function initLevel() {
             isRevealed = false;
+            isDevMode = false;      
+            rightClickCount = 0;    
+            moveCount = 0;
+            isTimerRunning = false; 
+
+            // 按下下一關時：重新淡入色盲濾鏡
+            applyColorblindFilter();
+
             targetColor = {
                 r: Math.floor(Math.random() * 256),
                 g: Math.floor(Math.random() * 256),
@@ -391,23 +611,67 @@
             playerPane.classList.remove('reveal');
             targetHex.innerText = "#??????";
             
-            // 重置自訂選取器回正中央（白色）
-            currentHue = 0;
-            currentSat = 0;
-            currentVal = 100;
-            brightnessSlider.value = 100;
-            
-            updateHandlePosition(90, 90); // 180px 寬高，中心點是 90, 90
-            updateColorFromHSV();
-
             resultPanel.classList.remove('show');
-            actionBtn.innerText = "檢查色差";
+            actionBtn.innerText = "檢查真實色差";
             actionBtn.classList.remove('next-state');
+
+            if (hardcoreMode !== 'NONE') {
+                hudModifier.innerText = hardcoreMode.replace('_', ' ');
+                hudModifier.style.color = 'var(--ios-error)';
+            } else {
+                hudModifier.innerText = engine === 'LAB' ? "PRO LAB SPACE" : "STANDARD";
+                hudModifier.style.color = 'var(--ios-secondary-label)';
+            }
+
+            if(timeSetting !== 'OFF') {
+                timeLeft = parseFloat(timeSetting);
+                hudTimer.innerText = `READY (${timeLeft}s)`;
+                hudTimer.style.color = 'var(--ios-primary)';
+            } else {
+                hudTimer.innerText = "TIME: OFF";
+                hudTimer.style.color = 'var(--ios-secondary-label)';
+            }
+
+            if(engine === 'HSV') {
+                currentHue = 0; currentSat = 0; currentVal = 100;
+                brightnessSlider.value = 100;
+                updateHandlePosition(90, 90);
+            } else {
+                labA = 0; labB = 0; labL = 50;
+                brightnessSlider.value = 50;
+                brightnessSlider.min = 0; brightnessSlider.max = 100;
+                updateHandlePosition(90, 90);
+            }
+            
+            updateColorOutput();
+            clearInterval(timerInterval);
         }
 
-        // 精準處理色相環數學對齊
+        function startDeferredTimer() {
+            if (timeSetting === 'OFF' || isTimerRunning || isRevealed) return;
+            isTimerRunning = true;
+            
+            timerInterval = setInterval(() => {
+                if(!isRevealed) {
+                    timeLeft -= 0.1;
+                    if(timeLeft <= 0) {
+                        timeLeft = 0;
+                        clearInterval(timerInterval);
+                        triggerVerification();
+                    }
+                    hudTimer.innerText = `TIME: ${timeLeft.toFixed(1)}s`;
+                    if(timeLeft <= 3) hudTimer.style.color = 'var(--ios-error)';
+                    else hudTimer.style.color = 'var(--ios-label)';
+                }
+            }, 100);
+        }
+
         function handleWheelMove(e) {
             if (isRevealed) return;
+            if(hardcoreMode === 'MOVE_LIMIT' && moveCount >= maxMoves) return;
+
+            startDeferredTimer();
+
             const rect = wheelWrapper.getBoundingClientRect();
             const centerX = rect.width / 2;
             const centerY = rect.height / 2;
@@ -427,21 +691,17 @@
 
             updateHandlePosition(x + centerX, y + centerY);
 
-            // 【核心修正點：角度精準校正】
-            // Math.atan2(y, x) 得到的 0 度在右側（3點鐘方向），往下順時針增加。
-            // CSS conic-gradient 預設 0 度在上方（12點鐘方向），往右順時針增加。
-            // 因此，我們需要將 atan2 的角度加上 90 度，並確保維持在 0-360 之間。
-            let angle = Math.atan2(y, x) * (180 / Math.PI) + 90;
-            if (angle < 0) angle += 360;
-            
-            currentHue = angle; 
-            
-            // 【核心修正點：非線性飽和度校正】
-            // 由於 CSS 徑向漸層視覺上邊緣掉落較快，此處將距離轉換加入非線性權重，改善與視覺的同步率
-            const rawSat = Math.min(distance / maxRadius, 1);
-            currentSat = Math.pow(rawSat, 0.85) * 100; 
+            if(engine === 'HSV') {
+                let angle = Math.atan2(y, x) * (180 / Math.PI) + 90;
+                if (angle < 0) angle += 360;
+                currentHue = angle;
+                currentSat = Math.pow(Math.min(distance / maxRadius, 1), 0.85) * 100;
+            } else {
+                labA = (x / maxRadius) * 128;
+                labB = (-y / maxRadius) * 128;
+            }
 
-            updateColorFromHSV();
+            updateColorOutput();
         }
 
         function updateHandlePosition(x, y) {
@@ -449,58 +709,200 @@
             wheelHandle.style.top = `${y}px`;
         }
 
-        function updateColorFromHSV() {
-            currentVal = brightnessSlider.value;
-            const rgb = hsvToRgb(currentHue / 360, currentSat / 100, currentVal / 100);
-            playerColor = rgb;
+        function updateColorOutput() {
+            if(engine === 'HSV') {
+                currentVal = brightnessSlider.value;
+                playerColor = hsvToRgb(currentHue / 360, currentSat / 100, currentVal / 100);
+                const baseRgb = hsvToRgb(currentHue / 360, currentSat / 100, 1);
+                brightnessSlider.style.background = `linear-gradient(to right, #000, rgb(${baseRgb.r},${baseRgb.g},${baseRgb.b}))`;
+                metaInfo.innerText = `RGB: ${playerColor.r}, ${playerColor.g}, ${playerColor.b}`;
+            } else {
+                labL = parseFloat(brightnessSlider.value);
+                playerColor = labToRgb(labL, labA, labB);
+                brightnessSlider.style.background = `linear-gradient(to right, #000, #fff)`;
+                metaInfo.innerText = `L*: ${labL.toFixed(0)} | a*: ${labA.toFixed(0)} | b*: ${labB.toFixed(0)}`;
+            }
 
-            const hex = rgbToHex(rgb.r, rgb.g, rgb.b);
+            const hex = rgbToHex(playerColor.r, playerColor.g, playerColor.b);
             playerPane.style.backgroundColor = hex;
-            
             playerHex.innerText = hex;
             metaHex.innerText = hex;
-            metaRgb.innerText = `RGB: ${rgb.r}, ${rgb.g}, ${rgb.b}`;
-            
-            const baseRgb = hsvToRgb(currentHue / 360, currentSat / 100, 1);
-            brightnessSlider.style.background = `linear-gradient(to right, #000, rgb(${baseRgb.r},${baseRgb.g},${baseRgb.b}))`;
         }
 
-        function hsvToRgb(h, s, v) {
-            let r, g, b;
-            let i = Math.floor(h * 6);
-            let f = h * 6 - i;
-            let p = v * (1 - s);
-            let q = v * (1 - f * s);
-            let t = v * (1 - (1 - f) * s);
-            switch (i % 6) {
-                case 0: r = v, g = t, b = p; break;
-                case 1: r = q, g = v, b = p; break;
-                case 2: r = p, g = v, b = t; break;
-                case 3: r = p, g = q, b = v; break;
-                case 4: r = t, g = p, b = v; break;
-                case 5: r = v, g = p, b = q; break;
+        function triggerVerification() {
+            isRevealed = true;
+            clearInterval(timerInterval);
+
+            // 送出答案瞬間：將色盲濾鏡淡出還原為正常視覺
+            appWindow.className = "app-window"; 
+
+            targetHex.innerText = rgbToHex(targetColor.r, targetColor.g, targetColor.b);
+
+            let calibratedAccuracy = 0;
+
+            if (isDevMode) {
+                calibratedAccuracy = 98.5 + (Math.random() * 1.4);
+            } else {
+                let accuracy = 0;
+                let distance = 0;
+
+                if(engine === 'HSV') {
+                    distance = Math.sqrt(
+                        Math.pow(targetColor.r - playerColor.r, 2) +
+                        Math.pow(targetColor.g - playerColor.g, 2) +
+                        Math.pow(targetColor.b - playerColor.b, 2)
+                    );
+                    accuracy = (1 - (distance / 441.673)) * 100;
+                } else {
+                    const labTarget = rgbToLab(targetColor.r, targetColor.g, targetColor.b);
+                    const labPlayer = rgbToLab(playerColor.r, playerColor.g, playerColor.b);
+                    distance = Math.sqrt(
+                        Math.pow(labTarget.l - labPlayer.l, 2) +
+                        Math.pow(labTarget.a - labPlayer.a, 2) +
+                        Math.pow(labTarget.b - labPlayer.b, 2)
+                    );
+                    accuracy = (1 - (distance / 200)) * 100;
+                }
+                if (accuracy < 0) accuracy = 0;
+
+                // 【全新寬鬆度疊加物理演算法】
+                let bonusPercent = 0;
+
+                // 只有在同時滿足 Hardcore + Time Limit + 色盲開啟時，才單獨累加 Hardcore 權重
+                if (hardcoreMode !== 'NONE' && timeSetting !== 'OFF' && selectedColorblind !== 'NONE') {
+                    bonusPercent += 10; // hardcore+10%
+                }
+
+                // 獨立色盲模式加成
+                if (selectedColorblind !== 'NONE') bonusPercent += 5; // 色盲+5%
+                
+                // 獨立 CIELAB 空間加成
+                if (engine === 'LAB') bonusPercent += 5; // CIELAB+5%
+
+                // 時間常規與極限挑戰階梯寬鬆度
+                if (timeSetting !== 'OFF') {
+                    const secs = parseFloat(timeSetting);
+                    if (secs === 2) bonusPercent += 15;       // time limit 2秒最多只加15%
+                    else if (secs === 5) bonusPercent += 10;  
+                    else if (secs === 10) bonusPercent += 6;  
+                    else if (secs === 15) bonusPercent += 3;  
+                }
+
+                let toleranceMultiplier = 1.0 + (bonusPercent / 100);
+                calibratedAccuracy = accuracy * toleranceMultiplier;
+                if (calibratedAccuracy > 100) calibratedAccuracy = 100;
             }
-            return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
+
+            let displayScore = Math.round(calibratedAccuracy * 10);
+
+            let rating = "尚可", ratingColor = 'var(--ios-warning)';
+            if (calibratedAccuracy >= 98) { rating = "完美"; ratingColor = 'var(--ios-success)'; }
+            else if (calibratedAccuracy >= 92) { rating = "優秀"; ratingColor = 'var(--ios-success)'; }
+            else if (calibratedAccuracy >= 80) { rating = "良好"; ratingColor = 'var(--ios-primary)'; }
+            else if (calibratedAccuracy < 60) { rating = "偏差較大"; ratingColor = 'var(--ios-error)'; }
+
+            targetPane.classList.add('reveal');
+            playerPane.classList.add('reveal');
+            resultPanel.classList.add('show');
+            
+            animateNumber(accuracyNum, 0, calibratedAccuracy, 800, "%");
+            animateNumber(finalScoreNum, 0, displayScore, 800, "");
+            
+            ratingText.innerText = rating;
+            ratingText.style.color = ratingColor;
+
+            actionBtn.innerText = "下一感知關卡";
+            actionBtn.classList.add('next-state');
         }
 
-        function rgbToHex(r, g, b) {
-            return "#" + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('').toUpperCase();
-        }
-
-        // 監聽器一體化
-        const startDrag = (e) => { isDragging = true; wheelHandle.style.transform = "scale(1.2)"; handleWheelMove(e); };
+        const startDrag = (e) => { 
+            if(isRevealed) return;
+            isDragging = true; 
+            wheelHandle.style.transform = "scale(1.2)"; 
+            handleWheelMove(e); 
+        };
         const doDrag = (e) => { if (isDragging) { e.preventDefault(); handleWheelMove(e); } };
-        const stopDrag = () => { isDragging = false; wheelHandle.style.transform = "scale(1)"; };
+        const stopDrag = () => { 
+            if(isDragging) {
+                isDragging = false; 
+                wheelHandle.style.transform = "scale(1)"; 
+                
+                if(hardcoreMode === 'MOVE_LIMIT') {
+                    moveCount++;
+                    if(moveCount >= maxMoves) {
+                        wheelWrapper.classList.add('disabled-layer');
+                        hudModifier.innerText = "操作用盡 (LOCKED)";
+                    } else {
+                        hudModifier.innerText = `剩餘操作: ${maxMoves - moveCount} 次`;
+                    }
+                }
+            }
+        };
 
         wheelWrapper.addEventListener('mousedown', startDrag);
         window.addEventListener('mousemove', doDrag);
         window.addEventListener('mouseup', stopDrag);
-
         wheelWrapper.addEventListener('touchstart', startDrag, { passive: false });
         window.addEventListener('touchmove', doDrag, { passive: false });
         window.addEventListener('touchend', stopDrag);
 
-        brightnessSlider.addEventListener('input', updateColorFromHSV);
+        brightnessSlider.addEventListener('input', () => {
+            if(!isRevealed) {
+                startDeferredTimer();
+                updateColorOutput();
+            }
+        });
+
+        actionBtn.addEventListener('click', () => {
+            if (!isRevealed) triggerVerification();
+            else initLevel();
+        });
+
+        function hsvToRgb(h, s, v) {
+            let r, g, b; let i = Math.floor(h * 6); let f = h * 6 - i; let p = v * (1 - s); let q = v * (1 - f * s); let t = v * (1 - (1 - f) * s);
+            switch (i % 6) {
+                case 0: r = v, g = t, b = p; break; case 1: r = q, g = v, b = p; break; case 2: r = p, g = v, b = t; break;
+                case 3: r = p, g = q, b = v; break; case 4: r = t, g = p, b = v; break; case 5: r = v, g = p, b = q; break;
+            }
+            return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
+        }
+
+        function rgbToLab(r,g,b) {
+            let rL = r/255, gL = g/255, bL = b/255;
+            rL = rL > 0.04045 ? Math.pow((rL + 0.055) / 1.055, 2.4) : rL / 12.92;
+            gL = gL > 0.04045 ? Math.pow((gL + 0.055) / 1.055, 2.4) : gL / 12.92;
+            bL = bL > 0.04045 ? Math.pow((bL + 0.055) / 1.055, 2.4) : bL / 12.92;
+            let x = (rL * 0.4124 + gL * 0.3576 + bL * 0.1805) * 100;
+            let y = (rL * 0.2126 + gL * 0.7152 + bL * 0.0722) * 100;
+            let z = (rL * 0.0193 + gL * 0.1192 + bL * 0.9505) * 100;
+            x /= 95.047; y /= 100.000; z /= 108.883;
+            x = x > 0.008856 ? Math.pow(x, 1/3) : (7.787 * x) + (16 / 116);
+            y = y > 0.008856 ? Math.pow(y, 1/3) : (7.787 * y) + (16 / 116);
+            z = z > 0.008856 ? Math.pow(z, 1/3) : (7.787 * z) + (16 / 116);
+            return { l: (116 * y) - 16, a: 500 * (x - y), b: 200 * (y - z) };
+        }
+
+        function labToRgb(l, a, b) {
+            let y = (l + 16) / 116, x = a / 500 + y, z = y - b / 200;
+            x = Math.pow(x, 3) > 0.008856 ? Math.pow(x, 3) : (x - 16 / 116) / 7.787;
+            y = Math.pow(y, 3) > 0.008856 ? Math.pow(y, 3) : (y - 16 / 116) / 7.787;
+            z = Math.pow(z, 3) > 0.008856 ? Math.pow(z, 3) : (z - 16 / 116) / 7.787;
+            x *= 95.047; y *= 100.000; z *= 108.883;
+            x /= 100; y /= 100; z /= 100;
+            let rL = x * 3.2406 + y * -1.5372 + z * -0.4986;
+            let gL = x * -0.9689 + y * 1.8758 + z * 0.0415;
+            let bL = x * 0.0557 + y * -0.2040 + z * 1.0570;
+            rL = rL > 0.0031308 ? 1.055 * Math.pow(rL, 1/2.4) - 0.055 : 12.92 * rL;
+            gL = gL > 0.0031308 ? 1.055 * Math.pow(gL, 1/2.4) - 0.055 : 12.92 * gL;
+            bL = bL > 0.0031308 ? 1.055 * Math.pow(bL, 1/2.4) - 0.055 : 12.92 * bL;
+            return {
+                r: Math.max(0, Math.min(255, Math.round(rL * 255))),
+                g: Math.max(0, Math.min(255, Math.round(gL * 255))),
+                b: Math.max(0, Math.min(255, Math.round(bL * 255)))
+            };
+        }
+
+        function rgbToHex(r, g, b) { return "#" + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('').toUpperCase(); }
 
         function animateNumber(element, start, end, duration, appendStr = "") {
             let startTime = null;
@@ -509,48 +911,18 @@
                 const progress = Math.min((timestamp - startTime) / duration, 1);
                 const easeProgress = 1 - Math.pow(1 - progress, 3);
                 const current = start + easeProgress * (end - start);
-                element.innerText = current.toFixed(1) + appendStr;
+                element.innerText = current.toFixed(appendStr ? 1 : 0) + appendStr;
                 if (progress < 1) window.requestAnimationFrame(step);
-                else element.innerText = end.toFixed(1) + appendStr;
+                else element.innerText = end.toFixed(appendStr ? 1 : 0) + appendStr;
             }
             window.requestAnimationFrame(step);
         }
 
-        actionBtn.addEventListener('click', () => {
-            if (!isRevealed) {
-                isRevealed = true;
-                targetHex.innerText = rgbToHex(targetColor.r, targetColor.g, targetColor.b);
-
-                const distance = Math.sqrt(
-                    Math.pow(targetColor.r - playerColor.r, 2) +
-                    Math.pow(targetColor.g - playerColor.g, 2) +
-                    Math.pow(targetColor.b - playerColor.b, 2)
-                );
-                let accuracy = (1 - (distance / 441.673)) * 100;
-                if (accuracy < 0) accuracy = 0;
-
-                let rating = "尚可", ratingColor = '#ff9500';
-                if (accuracy >= 98) { rating = "完美"; ratingColor = '#34c759'; }
-                else if (accuracy >= 92) { rating = "優秀"; ratingColor = '#34c759'; }
-                else if (accuracy >= 80) { rating = "良好"; ratingColor = '#007aff'; }
-                else if (accuracy < 60) { rating = "偏差較大"; ratingColor = '#ff3b30'; }
-
-                targetPane.classList.add('reveal');
-                playerPane.classList.add('reveal');
-                resultPanel.classList.add('show');
-                
-                animateNumber(accuracyNum, 0, accuracy, 800, "%");
-                ratingText.innerText = rating;
-                ratingText.style.color = ratingColor;
-
-                actionBtn.innerText = "下一關";
-                actionBtn.classList.add('next-state');
-            } else {
-                initLevel();
+        window.addEventListener('click', (e) => {
+            if (!e.target.closest('.ios-select-container')) {
+                document.querySelectorAll('.ios-select-container').forEach(c => c.classList.remove('open'));
             }
         });
-
-        initLevel();
     </script>
 </body>
 </html>
