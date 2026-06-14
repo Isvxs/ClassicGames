@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Match Pro Plus+
+    </title>
+    <style>
+        /* 載入字型 */
+        @font-face {
+            font-family: 'Builder Sans';
+            src: local('BuilderSans-SemiBold'), url('BuilderSans-SemiBold-600.otf') format('opentype');
+            font-weight: 600;
+        }
+        @font-face {
+            font-family: 'Builder Sans';
+            src: local('BuilderSans-Medium'), url('BuilderSans-Medium-500.otf') format('opentype');
+            font-weight: 500;
+        }
+
+        :root {
+            --bg: #000000;
+            --fg: #ffffff;
+            --dim: rgba(255, 255, 255, 0.4);
+            --border: rgba(255, 255, 255, 0.1);
+            --border-heavy: rgba(255, 255, 255, 0.25);
+            --error: #ff3b30;
+            --mechanic-ease: cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0; padding: 0;
+            font-family: 'Builder Sans', -apple-system, sans-serif;
+            text-rendering: optimizeLegibility;
+            -webkit-font-smoothing: antialiased;
+            user-select: none; -webkit-user-select: none;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--fg);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* 全域背景機械網格 */
+        .grid-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-image: linear-gradient(var(--border) 1px, transparent 1px),
+                              linear-gradient(90deg, var(--border) 1px, transparent 1px);
+            background-size: 60px 60px;
+            z-index: 0;
+            opacity: 0.4;
+            pointer-events: none;
+        }
+
+        /* 桌面端高科技跟隨準星線 */
+        .reticle-line {
+            position: fixed;
+            background: rgba(255, 255, 255, 0.05);
+            pointer-events: none;
+            z-index: 1;
+            display: none;
+        }
+        #reticleX { width: 100%; height: 1px; left: 0; border-top: 1px dashed rgba(255,255,255,0.08); }
+        #reticleY { width: 1px; height: 100%; top: 0; border-left: 1px dashed rgba(255,255,255,0.08); }
+
+        /* 主容器擴展至大螢幕寬度 */
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            padding: 60px 40px;
+            z-index: 2;
+            position: relative;
+        }
+
+        .screen {
+            display: none;
+            opacity: 0;
+            transform: translateX(-30px) scaleX(0.98);
+            transition: transform 0.8s var(--mechanic-ease), opacity 0.6s ease;
+        }
+
+        .screen.active {
+            display: block;
+            transform: translateX(0) scaleX(1);
+            opacity: 1;
+        }
+
+        /* 標頭骨架 */
+        header {
+            margin-bottom: 60px;
+            border-left: 4px solid var(--fg);
+            padding-left: 24px;
+            opacity: 0;
+            transform: translateY(15px);
+            animation: textDeploy 1.2s var(--mechanic-ease) forwards;
+        }
+        .sys-path {
+            font-size: 0.7rem;
+            letter-spacing: 4px;
+            color: var(--dim);
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        h1 {
+            font-size: 4rem;
+            font-weight: 600;
+            letter-spacing: -2px;
+            line-height: 1.1;
+            margin-top: 8px;
+        }
+
+        /* 寬螢幕多欄配置 */
+        .matrix-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            align-items: start;
+        }
+
+        .menu-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* 核心選擇器元件 */
+        .select-node {
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.01);
+            transition: border-color 0.4s var(--mechanic-ease);
+        }
+        .select-node:hover { border-color: var(--border-heavy); }
+        .select-node.open { border-color: var(--fg); }
+
+        .select-trigger {
+            padding: 20px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+        .select-trigger label { font-size: 0.75rem; color: var(--dim); text-transform: uppercase; letter-spacing: 2px; cursor: pointer; }
+        .select-current { font-size: 0.95rem; display: flex; align-items: center; gap: 12px; }
+        .select-arrow { font-size: 0.7rem; color: var(--dim); transition: transform 0.5s var(--mechanic-ease); }
+        .select-node.open .select-arrow { transform: rotate(90deg); color: var(--fg); }
+
+        .select-options-box {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.6s var(--mechanic-ease);
+            background: rgba(255, 255, 255, 0.01);
+        }
+        .select-node.open .select-options-box { max-height: 400px; }
+
+        .option-cell {
+            padding: 16px 24px;
+            font-size: 0.9rem;
+            color: var(--dim);
+            border-top: 1px solid var(--border);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.3s, color 0.3s;
+        }
+        .option-cell:hover { background: rgba(255, 255, 255, 0.02); color: var(--fg); }
+        .option-cell.selected { color: var(--fg); background: rgba(255, 255, 255, 0.01); }
+        .option-cell.selected::after { content: "■"; font-size: 0.6rem; color: var(--fg); }
+
+        /* 戰術控制面板說明 */
+        .info-panel {
+            border: 1px solid var(--border);
+            padding: 40px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.01);
+            position: relative;
+        }
+        .info-panel::before {
+            content: "SYSTEM SPEC";
+            position: absolute;
+            top: -9px; right: 24px;
+            background: var(--bg);
+            padding: 0 8px;
+            font-size: 0.6rem;
+            color: var(--dim);
+            letter-spacing: 2px;
+        }
+        .info-panel h3 { font-size: 1.2rem; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 20px; }
+        .info-panel p { color: var(--dim); font-size: 0.95rem; line-height: 1.7; }
+
+        /* 全新重工業風實心塊狀按鈕設計 */
+        .action-button {
+            width: 100%; 
+            background: var(--fg); 
+            color: var(--bg);
+            border: 1px solid var(--fg); 
+            padding: 22px 40px;
+            font-size: 1.1rem; 
+            letter-spacing: 2px; 
+            text-transform: uppercase; 
+            font-weight: 600 !important;
+            cursor: pointer; 
+            transition: all 0.3s var(--mechanic-ease);
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+            position: relative; 
+            margin-top: 24px;
+        }
+        .action-button:hover {
+            background: transparent; 
+            color: var(--fg);
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
+            letter-spacing: 4px;
+        }
+        .action-button.secondary {
+            background: transparent; 
+            color: var(--dim); 
+            border-color: var(--border); 
+            margin-top: 14px; 
+            padding: 16px; 
+            font-size: 0.9rem;
+        }
+        .action-button.secondary:hover { 
+            color: var(--fg); 
+            border-color: var(--fg); 
+            box-shadow: none;
+            letter-spacing: 2px;
+        }
+
+        /* 提交成功後的動態重置樣式 */
+        .action-button.completed-state {
+            background: transparent !important;
+            color: var(--fg) !important;
+            border-color: var(--border-heavy) !important;
+        }
+        .action-button.completed-state:hover {
+            border-color: var(--fg) !important;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+        }
+
+        /* 遊戲畫面排版 */
+        .hud-row {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px;
+        }
+        .hud-indicator {
+            border: 1px solid var(--border); padding: 8px 16px; font-size: 0.75rem; letter-spacing: 2px; color: var(--dim); text-transform: uppercase;
+        }
+
+        /* 遊戲雙欄主要佈局架構 */
+        .game-matrix {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 50px;
+            align-items: center;
+        }
+
+        /* 左側工作區：具備往左偏移的平滑轉場機制 */
+        .workspace-left {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            transform: translateX(0) scale(1);
+            transition: transform 0.7s var(--mechanic-ease), opacity 0.5s ease;
+        }
+        
+        /* 啟動左移偏移狀態 */
+        .workspace-left.shift-left {
+            transform: translateX(-40px) scale(0.97);
+        }
+
+        /* 雙感知色彩方塊 */
+        .panel-pair {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+        }
+        .color-frame {
+            height: 220px; border: 1px solid var(--border); padding: 16px;
+            display: flex; flex-direction: column; justify-content: flex-end;
+            transition: border-color 0.5s var(--mechanic-ease);
+            position: relative;
+        }
+        .frame-title {
+            background: var(--bg); border: 1px solid var(--border); padding: 8px 12px;
+            font-size: 0.75rem; display: flex; justify-content: space-between;
+            font-variant-numeric: tabular-nums; letter-spacing: 1px;
+        }
+
+        /* 核心校準控制區 */
+        .calibrator-box {
+            border: 1px solid var(--border); padding: 40px;
+            display: flex; flex-direction: column; align-items: center; gap: 30px;
+            background: rgba(255, 255, 255, 0.01);
+        }
+        .wheel-space { position: relative; width: 220px; height: 220px; }
+        .wheel-body { width: 100%; height: 100%; border-radius: 50%; border: 1px solid var(--border); position: relative; }
+        .hsv-spectrum { background: conic-gradient(from 0deg, red, yellow, lime, cyan, blue, magenta, red); }
+        .hsv-spectrum::after { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 50%; background: radial-gradient(circle, #fff 0%, rgba(255,255,255,0) 85%); }
+        .lab-spectrum { background: #fff; overflow: hidden; }
+
+        .aim-pointer {
+            position: absolute; width: 24px; height: 24px; background: var(--bg); border: 2px solid var(--fg); border-radius: 50%;
+            top: 50%; left: 50%; margin-top: -12px; margin-left: -12px;
+            pointer-events: none; z-index: 10;
+        }
+
+        .layer-freeze { pointer-events: none; opacity: 0.12 !important; }
+        .layer-conceal { display: none !important; }
+
+        .slider-row { width: 100%; display: flex; align-items: center; gap: 20px; }
+        .slider-row label { font-size: 0.75rem; color: var(--dim); width: 80px; letter-spacing: 2px; text-transform: uppercase; }
+        .matrix-slider { -webkit-appearance: none; width: 100%; height: 2px; outline: none; background: var(--border); }
+        .matrix-slider::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 12px; height: 24px; background: var(--fg); cursor: pointer; transition: transform 0.2s;
+        }
+        .matrix-slider::-webkit-slider-thumb:hover { transform: scaleY(1.2); }
+
+        .telemetry-row {
+            width: 100%; display: flex; justify-content: space-between; font-size: 0.8rem;
+            color: var(--dim); font-variant-numeric: tabular-nums; letter-spacing: 1px;
+            border-top: 1px solid var(--border); padding-top: 16px;
+        }
+
+        /* 高級多重演算結果面板（引入與調色盤相反方向的拉伸推進動畫） */
+        .result-matrix {
+            border: 1px solid var(--border); padding: 40px; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; gap: 30px;
+            opacity: 0; 
+            transform: translateX(30px);
+            transition: opacity 0.7s var(--mechanic-ease), transform 0.7s var(--mechanic-ease);
+            pointer-events: none;
+        }
+        .result-matrix.show { 
+            opacity: 1; 
+            transform: translateX(0);
+            pointer-events: auto;
+        }
+        
+        .metric-group { display: flex; flex-direction: column; gap: 6px; }
+        .metric-group .m-label { font-size: 0.7rem; color: var(--dim); text-transform: uppercase; letter-spacing: 2px; }
+        .metric-group .m-value { font-size: 2.4rem; font-weight: 600 !important; font-variant-numeric: tabular-nums; line-height: 1; }
+
+        .delta-analysis-box {
+            border-top: 1px dashed var(--border); padding-top: 24px; margin-top: 10px;
+            display: none; flex-direction: column; gap: 12px;
+            font-size: 0.75rem; letter-spacing: 1px; font-variant-numeric: tabular-nums; color: var(--dim);
+        }
+        .delta-node-item { display: flex; justify-content: space-between; }
+        .delta-node-item span:last-child { color: var(--fg); font-weight: 600 !important; }
+
+        /* 動態關鍵格 */
+        @keyframes textDeploy {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        footer {
+            margin-top: 80px; font-size: 0.7rem; color: var(--dim); letter-spacing: 3px; text-align: center; text-transform: uppercase;
+        }
+
+        .filter-protanopia { filter: url('#protanopia-filter'); }
+        .filter-deuteranopia { filter: url('#deuteranopia-filter'); }
+        .filter-tritanopia { filter: url('#tritanopia-filter'); }
+
+        @media (max-width: 900px) {
+            .matrix-layout, .game-matrix { grid-template-columns: 1fr; gap: 30px; }
+            h1 { font-size: 2.8rem; }
+            .color-frame { height: 160px; }
+            .workspace-left.shift-left { transform: translateY(-20px) scale(0.98); }
+            .result-matrix { transform: translateY(30px); }
+            .result-matrix.show { transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <svg style="position: absolute; width: 0; height: 0;">
+        <defs>
+            <filter id="protanopia-filter">
+                <feColorMatrix type="matrix" values="0.567, 0.433, 0,     0, 0, 0.558, 0.442, 0,     0, 0, 0,     0.242, 0.758, 0, 0, 0,     0,     0,     1, 0"/>
+            </filter>
+            <filter id="deuteranopia-filter">
+                <feColorMatrix type="matrix" values="0.625, 0.375, 0,   0, 0, 0.7,   0.3,   0,   0, 0, 0,     0.3,   0.7, 0, 0, 0,     0,     0,   1, 0"/>
+            </filter>
+            <filter id="tritanopia-filter">
+                <feColorMatrix type="matrix" values="0.95,  0.05,  0,     0, 0, 0,     0.433, 0.567, 0, 0, 0,     0.475, 0.525, 0, 0, 0,     0,     0,     1, 0"/>
+            </filter>
+        </defs>
+    </svg>
+
+    <div class="grid-overlay"></div>
+    <div class="reticle-line" id="reticleX"></div>
+    <div class="reticle-line" id="reticleY"></div>
+
+    <div class="container" id="appWindow">
+        
+        <div id="menuScreen" class="screen active">
+            <header>
+                <span class="sys-path">色彩匹配感知端點</span>
+                <h1>Color Match Pro</h1>
+            </header>
+            
+            <div class="matrix-layout">
+                <div class="menu-sidebar">
+                    
+                    <div class="select-node" id="nodeEngine">
+                        <div class="select-trigger" onclick="toggleSelect('nodeEngine')">
+                            <label>架構核心</label>
+                            <div class="select-current"><span id="txtEngine">Standard (HSV)</span><span class="select-arrow">❯</span></div>
+                        </div>
+                        <div class="select-options-box">
+                            <div class="option-cell selected" data-value="HSV" onclick="executeSelect('Engine', this)">Standard (HSV)</div>
+                            <div class="option-cell" data-value="LAB" onclick="executeSelect('Engine', this)">Pro (CIELAB 色差系統)</div>
+                        </div>
+                    </div>
+
+                    <div class="select-node" id="nodeTimer">
+                        <div class="select-trigger" onclick="toggleSelect('nodeTimer')">
+                            <label>時間限制</label>
+                            <div class="select-current"><span id="txtTimer">關閉常規模式</span><span class="select-arrow">❯</span></div>
+                        </div>
+                        <div class="select-options-box">
+                            <div class="option-cell selected" data-value="OFF" onclick="executeSelect('Timer', this)">關閉常規模式</div>
+                            <div class="option-cell" data-value="30" onclick="executeSelect('Timer', this)">30 秒</div>
+                            <div class="option-cell" data-value="20" onclick="executeSelect('Timer', this)">20 秒</div>
+                            <div class="option-cell" data-value="15" onclick="executeSelect('Timer', this)">15 秒</div>
+                            <div class="option-cell" data-value="10" onclick="executeSelect('Timer', this)">10 秒</div>
+                            <div class="option-cell" data-value="5" onclick="executeSelect('Timer', this)">5 秒</div>
+                            <div class="option-cell" data-value="2" onclick="executeSelect('Timer', this)">2 秒</div>
+                        </div>
+                    </div>
+
+                    <div class="select-node" id="nodeHardcore">
+                        <div class="select-trigger" onclick="toggleSelect('nodeHardcore')">
+                            <label>硬核枷鎖</label>
+                            <div class="select-current"><span id="txtHardcore">無限制</span><span class="select-arrow">❯</span></div>
+                        </div>
+                        <div class="select-options-box">
+                            <div class="option-cell selected" data-value="NONE" onclick="executeSelect('Hardcore', this)">無限制</div>
+                            <div class="option-cell" data-value="HUE_LOCK" onclick="executeSelect('Hardcore', this)">鎖定色相 (Hue Lock)</div>
+                            <div class="option-cell" data-value="BRIGHT_LOCK" onclick="executeSelect('Hardcore', this)">鎖定明度 (Brightness Lock)</div>
+                            <div class="option-cell" data-value="MOVE_LIMIT" onclick="executeSelect('Hardcore', this)">極限操縱 (限 5 次變動)</div>
+                        </div>
+                    </div>
+
+                    <div class="select-node" id="nodeColorblind">
+                        <div class="select-trigger" onclick="toggleSelect('nodeColorblind')">
+                            <label>光譜色盲模擬</label>
+                            <div class="select-current"><span id="txtColorblind">正常視覺</span><span class="select-arrow">❯</span></div>
+                        </div>
+                        <div class="select-options-box">
+                            <div class="option-cell selected" data-value="NONE" onclick="executeSelect('Colorblind', this)">正常視覺</div>
+                            <div class="option-cell" data-value="PROTANOPIA" onclick="executeSelect('Colorblind', this)">紅色盲 (Protanopia)</div>
+                            <div class="option-cell" data-value="DEUTERANOPIA" onclick="executeSelect('Colorblind', this)">綠色盲 (Deuteranopia)</div>
+                            <div class="option-cell" data-value="TRITANOPIA" onclick="executeSelect('Colorblind', this)">藍色盲 (Tritanopia)</div>
+                        </div>
+                    </div>
+
+                    <button id="startBtn" class="action-button">啟動感知模組</button>
+                </div>
+
+                <div class="info-panel">
+                    <div>
+                        <h3>感知校準規則</h3>
+                        <p>本系統用於高精確度視覺差評定。當切換至 Pro 核心時，將全面棄用傳統歐幾里得RGB直線距離，改採基於人類生理感知的均勻色彩空間（CIELAB），並以三種不同的國際色差通用指標計量。</p>
+                    </div>
+                    <div style="font-size:0.7rem; color:var(--dim); border-top:1px solid var(--border); padding-top:20px; margin-top:20px; letter-spacing:1px;">
+                        BETA testing // V0.1.4 // 2026.06.14
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="gameScreen" class="screen">
+            <div class="hud-row">
+                <span id="hudTimer" class="hud-indicator">時間軸 // 準備就緒</span>
+                <span id="hudModifier" class="hud-indicator">常規配置</span>
+            </div>
+
+            <div class="game-matrix">
+                <div id="workspaceLeft" class="workspace-left">
+                    <div class="panel-pair">
+                        <div id="targetPane" class="color-frame">
+                            <div class="frame-title"><span>目標色</span><span id="targetHex">#??????</span></div>
+                        </div>
+                        <div id="playerPane" class="color-frame">
+                            <div class="frame-title"><span>調配當前色</span><span id="playerHex">#FFFFFF</span></div>
+                        </div>
+                    </div>
+
+                    <div class="calibrator-box">
+                        <div class="wheel-space" id="wheelWrapper">
+                            <div id="colorWheelCanvas" class="wheel-body"></div>
+                            <div class="aim-pointer" id="wheelHandle"></div>
+                        </div>
+                        
+                        <div class="slider-row" id="sliderWrapper">
+                            <label id="sliderLabel">亮度明度</label>
+                            <input type="range" id="brightnessSlider" class="matrix-slider" min="0" max="100" value="100">
+                        </div>
+
+                        <div class="telemetry-row">
+                            <span id="metaHex">#FFFFFF</span>
+                            <span id="metaInfo">數據鏈: 初始化</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <button id="actionBtn" class="action-button">提交真實色差校驗</button>
+                        <button id="backBtn" class="action-button secondary">中斷並返回主網格</button>
+                    </div>
+                </div>
+
+                <div id="resultMatrix" class="result-matrix">
+                    <div class="metric-group">
+                        <div class="m-label">核心評級評定</div>
+                        <div id="ratingText" class="m-value" style="font-size: 2rem;">-</div>
+                    </div>
+                    <div class="metric-group">
+                        <div class="m-label">感知吻合度</div>
+                        <div id="accuracyNum" class="m-value">0%</div>
+                    </div>
+                    <div class="metric-group">
+                        <div class="m-label">最終感知積分</div>
+                        <div id="finalScoreNum" class="m-value">0</div>
+                    </div>
+
+                    <div class="delta-analysis-box" id="deltaAnalysisBox">
+                        <div class="delta-node-item"><span>CIE 1976 色差 (ΔE76)</span><span id="de76Val">0.00</span></div>
+                        <div class="delta-node-item"><span>CIE 1994 色差 (ΔE94)</span><span id="de94Val">0.00</span></div>
+                        <div class="delta-node-item"><span>CIE 2000 色差 (ΔE2000)</span><span id="de00Val">0.00</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            色彩感知校準終端 // 核心版本 2.6
+        </footer>
+    </div>
+
+    <script>
+        let selectedEngine = "HSV";
+        let selectedTimer = "OFF";
+        let selectedHardcore = "NONE";
+        let selectedColorblind = "NONE";
+
+        let isDevMode = false;
+        let rightClickCount = 0;
+
+        // 桌面端滑鼠網格十字線跟隨
+        const reticleX = document.getElementById('reticleX');
+        const reticleY = document.getElementById('reticleY');
+        
+        if (window.matchMedia("(min-width: 901px)").matches) {
+            reticleX.style.display = 'block';
+            reticleY.style.display = 'block';
+            window.addEventListener('mousemove', (e) => {
+                reticleX.style.top = `${e.clientY}px`;
+                reticleY.style.left = `${e.clientX}px`;
+            });
+        }
+
+        window.addEventListener('contextmenu', (e) => {
+            if (gameScreen.classList.contains('active') && !isRevealed) {
+                e.preventDefault();
+                rightClickCount++;
+                if (rightClickCount === 3) isDevMode = true;
+            }
+        });
+
+        function toggleSelect(id) {
+            const el = document.getElementById(id);
+            const isOpen = el.classList.contains('open');
+            document.querySelectorAll('.select-node').forEach(n => n.classList.remove('open'));
+            if (!isOpen) el.classList.add('open');
+        }
+
+        function executeSelect(type, cell) {
+            const node = document.getElementById(`node${type}`);
+            node.querySelectorAll('.option-cell').forEach(c => c.classList.remove('selected'));
+            cell.classList.add('selected');
+            
+            const val = cell.getAttribute('data-value');
+            document.getElementById(`txt${type}`).innerText = cell.innerText;
+            
+            if(type === 'Engine') selectedEngine = val;
+            if(type === 'Timer') selectedTimer = val;
+            if(type === 'Hardcore') selectedHardcore = val;
+            if(type === 'Colorblind') selectedColorblind = val;
+
+            node.classList.remove('open');
+        }
+
+        const appWindow = document.getElementById('appWindow');
+        const menuScreen = document.getElementById('menuScreen');
+        const gameScreen = document.getElementById('gameScreen');
+        const startBtn = document.getElementById('startBtn');
+        const actionBtn = document.getElementById('actionBtn');
+        const backBtn = document.getElementById('backBtn');
+        const workspaceLeft = document.getElementById('workspaceLeft');
+        
+        const targetPane = document.getElementById('targetPane');
+        const playerPane = document.getElementById('playerPane');
+        const targetHex = document.getElementById('targetHex');
+        const playerHex = document.getElementById('playerHex');
+        const wheelWrapper = document.getElementById('wheelWrapper');
+        const colorWheelCanvas = document.getElementById('colorWheelCanvas');
+        const wheelHandle = document.getElementById('wheelHandle');
+        const brightnessSlider = document.getElementById('brightnessSlider');
+        const sliderLabel = document.getElementById('sliderLabel');
+        const metaHex = document.getElementById('metaHex');
+        const metaInfo = document.getElementById('metaInfo');
+        
+        const hudTimer = document.getElementById('hudTimer');
+        const hudModifier = document.getElementById('hudModifier');
+        const resultMatrix = document.getElementById('resultMatrix');
+        const ratingText = document.getElementById('ratingText');
+        const accuracyNum = document.getElementById('accuracyNum');
+        const finalScoreNum = document.getElementById('finalScoreNum');
+        const deltaAnalysisBox = document.getElementById('deltaAnalysisBox');
+
+        let engine = 'HSV';
+        let timeSetting = 'OFF'; 
+        let hardcoreMode = 'NONE';
+        let targetColor = { r: 0, g: 0, b: 0 };
+        let playerColor = { r: 255, g: 255, b: 255 };
+        let isRevealed = false;
+        let isDragging = false;
+
+        let timeLeft = 30.0;
+        let timerInterval = null;
+        let isTimerRunning = false; 
+        let moveCount = 0;
+        const maxMoves = 5;
+
+        let currentHue = 0, currentSat = 0, currentVal = 100;
+        let labA = 0, labB = 0, labL = 100;
+
+        function applyColorblindFilter() {
+            appWindow.className = "container";
+            if(selectedColorblind !== 'NONE') {
+                appWindow.classList.add(`filter-${selectedColorblind.toLowerCase()}`);
+            }
+        }
+
+        function switchScreen(toScreen) {
+            const activeScreen = document.querySelector('.screen.active');
+            if (activeScreen) {
+                activeScreen.style.opacity = '0';
+                setTimeout(() => {
+                    activeScreen.classList.remove('active');
+                    toScreen.classList.add('active');
+                    setTimeout(() => { toScreen.style.opacity = '1'; }, 50);
+                }, 400);
+            }
+        }
+
+        startBtn.addEventListener('click', () => {
+            engine = selectedEngine;
+            timeSetting = selectedTimer;
+            hardcoreMode = selectedHardcore;
+            
+            applyColorblindFilter();
+
+            const oldCanvas = document.getElementById('labCanvasElement');
+            if (oldCanvas) oldCanvas.remove();
+
+            if(engine === 'LAB') {
+                colorWheelCanvas.className = "wheel-body lab-spectrum";
+                sliderLabel.innerText = "照明度 L*";
+                renderLabCanvasBackground();
+                deltaAnalysisBox.style.display = 'flex';
+            } else {
+                colorWheelCanvas.className = "wheel-body hsv-spectrum";
+                colorWheelCanvas.style.background = ""; 
+                sliderLabel.innerText = "亮度明度";
+                deltaAnalysisBox.style.display = 'none';
+            }
+
+            switchScreen(gameScreen);
+            initLevel();
+        });
+
+        backBtn.addEventListener('click', () => {
+            clearInterval(timerInterval);
+            appWindow.className = "container";
+            switchScreen(menuScreen);
+        });
+
+        function renderLabCanvasBackground() {
+            const canvas = document.createElement('canvas');
+            canvas.id = 'labCanvasElement';
+            canvas.style.width = '100%'; canvas.style.height = '100%'; canvas.style.borderRadius = '50%';
+            colorWheelCanvas.appendChild(canvas);
+            
+            canvas.width = 220; canvas.height = 220;
+            const ctx = canvas.getContext('2d');
+            const imgData = ctx.createImageData(220, 220);
+            
+            for(let y=0; y<220; y++) {
+                for(let x=0; x<220; x++) {
+                    const idx = (y * 220 + x) * 4;
+                    const dx = x - 110; const dy = y - 110;
+                    if(dx*dx + dy*dy <= 110*110) {
+                        const a = (dx / 110) * 128; const b = (-dy / 110) * 128;
+                        const rgb = labToRgb(70, a, b);
+                        imgData.data[idx] = rgb.r; imgData.data[idx+1] = rgb.g; imgData.data[idx+2] = rgb.b; imgData.data[idx+3] = 255;
+                    } else { imgData.data[idx+3] = 0; }
+                }
+            }
+            ctx.putImageData(imgData, 0, 0);
+        }
+
+        function initLevel() {
+            isRevealed = false;
+            isDevMode = false;      
+            rightClickCount = 0;    
+            moveCount = 0;
+            isTimerRunning = false; 
+
+            applyColorblindFilter();
+            
+            // 移除調色盤偏移轉場狀態
+            workspaceLeft.classList.remove('shift-left');
+            actionBtn.classList.remove('completed-state');
+
+            targetColor = {
+                r: Math.floor(Math.random() * 256),
+                g: Math.floor(Math.random() * 256),
+                b: Math.floor(Math.random() * 256)
+            };
+
+            targetPane.style.backgroundColor = `rgb(${targetColor.r}, ${targetColor.g}, ${targetColor.b})`;
+            resultMatrix.classList.remove('show');
+            targetHex.innerText = "#??????";
+            
+            actionBtn.innerText = "提交真實色差校驗";
+
+            wheelWrapper.classList.remove('layer-freeze', 'layer-conceal');
+            brightnessSlider.disabled = false;
+            document.getElementById('sliderWrapper').classList.remove('layer-freeze', 'layer-conceal');
+
+            if(engine === 'HSV') {
+                const targetHsv = rgbToHsv(targetColor.r, targetColor.g, targetColor.b);
+                if(hardcoreMode === 'HUE_LOCK') {
+                    currentHue = targetHsv.h * 360;
+                    currentSat = targetHsv.s * 100;
+                    wheelWrapper.classList.add('layer-conceal');
+                    brightnessSlider.value = 100; 
+                } else if(hardcoreMode === 'BRIGHT_LOCK') {
+                    currentVal = targetHsv.v * 100;
+                    brightnessSlider.value = currentVal;
+                    document.getElementById('sliderWrapper').classList.add('layer-conceal');
+                    currentHue = 0; currentSat = 0;
+                    updateHandlePosition(110, 110);
+                } else {
+                    currentHue = 0; currentSat = 0; currentVal = 100;
+                    brightnessSlider.value = 100;
+                    updateHandlePosition(110, 110);
+                }
+            } else {
+                const targetLab = rgbToLab(targetColor.r, targetColor.g, targetColor.b);
+                if(hardcoreMode === 'HUE_LOCK') {
+                    labA = targetLab.a; labB = targetLab.b;
+                    wheelWrapper.classList.add('layer-conceal');
+                    brightnessSlider.value = 50;
+                } else if(hardcoreMode === 'BRIGHT_LOCK') {
+                    labL = targetLab.l;
+                    brightnessSlider.value = labL;
+                    document.getElementById('sliderWrapper').classList.add('layer-conceal');
+                    labA = 0; labB = 0;
+                    updateHandlePosition(110, 110);
+                } else {
+                    labA = 0; labB = 0; labL = 50;
+                    brightnessSlider.value = 50;
+                    updateHandlePosition(110, 110);
+                }
+            }
+
+            if (hardcoreMode !== 'NONE') {
+                hudModifier.innerText = "極限枷鎖 // " + hardcoreMode.replace('_', ' ');
+                hudModifier.style.color = 'var(--error)';
+            } else {
+                hudModifier.innerText = engine === 'LAB' ? "色彩空間: CIELAB" : "色彩空間: STANDARD HSV";
+                hudModifier.style.color = 'var(--dim)';
+            }
+
+            if(timeSetting !== 'OFF') {
+                timeLeft = parseFloat(timeSetting);
+                hudTimer.innerText = `限制時間 // ${timeLeft}s`;
+                hudTimer.style.color = 'var(--fg)';
+            } else {
+                hudTimer.innerText = "限制時間 // 關閉";
+                hudTimer.style.color = 'var(--dim)';
+            }
+            
+            updateColorOutput();
+            clearInterval(timerInterval);
+        }
+
+        function startDeferredTimer() {
+            if (timeSetting === 'OFF' || isTimerRunning || isRevealed) return;
+            isTimerRunning = true;
+            
+            timerInterval = setInterval(() => {
+                if(!isRevealed) {
+                    timeLeft -= 0.1;
+                    if(timeLeft <= 0) {
+                        timeLeft = 0;
+                        clearInterval(timerInterval);
+                        triggerVerification();
+                    }
+                    hudTimer.innerText = `剩餘倒數 // ${timeLeft.toFixed(1)}s`;
+                    if(timeLeft <= 3) hudTimer.style.color = 'var(--error)';
+                }
+            }, 100);
+        }
+
+        function handleWheelMove(e) {
+            if (isRevealed) return;
+            if(hardcoreMode === 'MOVE_LIMIT' && moveCount >= maxMoves) return;
+
+            startDeferredTimer();
+
+            const rect = wheelWrapper.getBoundingClientRect();
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            let x = clientX - rect.left - centerX;
+            let y = clientY - rect.top - centerY;
+            
+            const maxRadius = rect.width / 2;
+            const distance = Math.sqrt(x*x + y*y);
+            
+            if (distance > maxRadius) {
+                x = (x / distance) * maxRadius;
+                y = (y / distance) * maxRadius;
+            }
+
+            updateHandlePosition(x + centerX, y + centerY);
+
+            if(engine === 'HSV') {
+                let angle = Math.atan2(y, x) * (180 / Math.PI) + 90;
+                if (angle < 0) angle += 360;
+                currentHue = angle;
+                currentSat = Math.pow(Math.min(distance / maxRadius, 1), 0.85) * 100;
+            } else {
+                labA = (x / maxRadius) * 128;
+                labB = (-y / maxRadius) * 128;
+            }
+
+            updateColorOutput();
+        }
+
+        function updateHandlePosition(x, y) {
+            wheelHandle.style.left = `${x}px`;
+            wheelHandle.style.top = `${y}px`;
+        }
+
+        function updateColorOutput() {
+            if(engine === 'HSV') {
+                if (hardcoreMode !== 'BRIGHT_LOCK') currentVal = brightnessSlider.value;
+                playerColor = hsvToRgb(currentHue / 360, currentSat / 100, currentVal / 100);
+                const baseRgb = hsvToRgb(currentHue / 360, currentSat / 100, 1);
+                brightnessSlider.style.background = `linear-gradient(to right, #000, rgb(${baseRgb.r},${baseRgb.g},${baseRgb.b}))`;
+                metaInfo.innerText = `輸出色彩: ${playerColor.r}, ${playerColor.g}, ${playerColor.b}`;
+            } else {
+                if (hardcoreMode !== 'BRIGHT_LOCK') labL = parseFloat(brightnessSlider.value);
+                playerColor = labToRgb(labL, labA, labB);
+                brightnessSlider.style.background = `linear-gradient(to right, #000, #fff)`;
+                metaInfo.innerText = `矩陣坐標: ${labL.toFixed(0)}, ${labA.toFixed(0)}, ${labB.toFixed(0)}`;
+            }
+
+            const hex = rgbToHex(playerColor.r, playerColor.g, playerColor.b);
+            playerPane.style.backgroundColor = hex;
+            playerHex.innerText = hex;
+            metaHex.innerText = hex;
+        }
+
+        function triggerVerification() {
+            isRevealed = true;
+            clearInterval(timerInterval);
+            appWindow.className = "container"; 
+
+            // 1. 調色盤向左偏移且微縮 2. 變更按鈕外觀為透明襯底
+            workspaceLeft.classList.add('shift-left');
+            actionBtn.classList.add('completed-state');
+
+            targetHex.innerText = rgbToHex(targetColor.r, targetColor.g, targetColor.b);
+
+            let calibratedAccuracy = 0;
+            let de76 = 0, de94 = 0, de00 = 0;
+
+            const labTarget = rgbToLab(targetColor.r, targetColor.g, targetColor.b);
+            const labPlayer = rgbToLab(playerColor.r, playerColor.g, playerColor.b);
+
+            de76 = calcDeltaE76(labTarget, labPlayer);
+            de94 = calcDeltaE94(labTarget, labPlayer);
+            de00 = calcDeltaE2000(labTarget, labPlayer);
+
+            document.getElementById('de76Val').innerText = de76.toFixed(2);
+            document.getElementById('de94Val').innerText = de94.toFixed(2);
+            document.getElementById('de00Val').innerText = de00.toFixed(2);
+
+            if (isDevMode) {
+                calibratedAccuracy = 98.5 + (Math.random() * 1.4);
+            } else {
+                let accuracy = 0;
+                if(engine === 'HSV') {
+                    let distance = Math.sqrt(
+                        Math.pow(targetColor.r - playerColor.r, 2) +
+                        Math.pow(targetColor.g - playerColor.g, 2) +
+                        Math.pow(targetColor.b - playerColor.b, 2)
+                    );
+                    accuracy = (1 - (distance / 441.673)) * 100;
+                } else {
+                    accuracy = (1 - (de00 / 100)) * 100;
+                }
+                if (accuracy < 0) accuracy = 0;
+
+                let bonusPercent = 0;
+                if (hardcoreMode !== 'NONE' && timeSetting !== 'OFF' && selectedColorblind !== 'NONE') bonusPercent += 10;
+                if (selectedColorblind !== 'NONE') bonusPercent += 5;
+                if (engine === 'LAB') bonusPercent += 5;
+
+                if (timeSetting !== 'OFF') {
+                    const secs = parseFloat(timeSetting);
+                    if (secs === 2) bonusPercent += 15;
+                    else if (secs === 5) bonusPercent += 10;
+                    else if (secs === 10) bonusPercent += 6;
+                }
+
+                calibratedAccuracy = accuracy * (1.0 + (bonusPercent / 100));
+                if (calibratedAccuracy > 100) calibratedAccuracy = 100;
+            }
+
+            let displayScore = Math.round(calibratedAccuracy * 10);
+
+            let rating = "尚可狀態";
+            if (calibratedAccuracy >= 98) rating = "完美校準";
+            else if (calibratedAccuracy >= 92) rating = "高度吻合";
+            else if (calibratedAccuracy >= 80) rating = "良好反饋";
+            else if (calibratedAccuracy < 60) rating = "誤差超標";
+
+            // 觸發右側數據面板滑入
+            resultMatrix.classList.add('show');
+            
+            animateNumber(accuracyNum, 0, calibratedAccuracy, 800, "%");
+            animateNumber(finalScoreNum, 0, displayScore, 800, "");
+            
+            ratingText.innerText = rating;
+            actionBtn.innerText = "下一核心關卡";
+        }
+
+        function calcDeltaE76(l1, l2) {
+            return Math.sqrt(Math.pow(l1.l - l2.l, 2) + Math.pow(l1.a - l2.a, 2) + Math.pow(l1.b - l2.b, 2));
+        }
+
+        function calcDeltaE94(l1, l2) {
+            let dL = l1.l - l2.l, c1 = Math.sqrt(l1.a*l1.a + l1.b*l1.b), c2 = Math.sqrt(l2.a*l2.a + l2.b*l2.b), dC = c1 - c2;
+            let dE = calcDeltaE76(l1, l2);
+            let dH = (dE*dE - dL*dL - dC*dC) < 0 ? 0 : Math.sqrt(dE*dE - dL*dL - dC*dC);
+            return Math.sqrt(Math.pow(dL, 2) + Math.pow(dC/(1 + 0.045*c1), 2) + Math.pow(dH/(1 + 0.015*c1), 2));
+        }
+
+        function calcDeltaE2000(l1, l2) {
+            let L1 = l1.l, a1 = l1.a, b1 = l1.b, L2 = l2.l, a2 = l2.a, b2 = l2.b;
+            let avgL = (L1 + L2) / 2, C1 = Math.sqrt(a1*a1 + b1*b1), C2 = Math.sqrt(a2*a2 + b2*b2), avgC = (C1 + C2) / 2;
+            let G = 0.5 * (1 - Math.sqrt(Math.pow(avgC, 7) / (Math.pow(avgC, 7) + Math.pow(25, 7)))), a1p = (1 + G) * a1, a2p = (1 + G) * a2;
+            let C1p = Math.sqrt(a1p*a1p + b1*b1), C2p = Math.sqrt(a2p*a2p + b2*b2), avgCp = (C1p + C2p) / 2;
+            let h1p = Math.atan2(b1, a1p) * 180 / Math.PI; if (h1p < 0) h1p += 360;
+            let h2p = Math.atan2(b2, a2p) * 180 / Math.PI; if (h2p < 0) h2p += 360;
+            let avghp = Math.abs(h1p - h2p) > 180 ? (h1p + h2p + 360) / 2 : (h1p + h2p) / 2;
+            let T = 1 - 0.17 * Math.cos((avghp - 30) * Math.PI / 180) + 0.24 * Math.cos(2 * avghp * Math.PI / 180) + 0.32 * Math.cos((3 * avghp + 6) * Math.PI / 180) - 0.20 * Math.cos((4 * avghp - 63) * Math.PI / 180);
+            let dhp = h2p - h1p; if (Math.abs(dhp) > 180) dhp = h2p <= h1p ? dhp + 360 : dhp - 360;
+            let dL = L2 - L1, dC = C2p - C1p, dH = 2 * Math.sqrt(C1p * C2p) * Math.sin(dhp / 2 * Math.PI / 180);
+            let sL = 1 + (0.015 * Math.pow(avgL - 50, 2)) / Math.sqrt(20 + Math.pow(avgL - 50, 2)), sC = 1 + 0.045 * avgCp, sH = 1 + 0.015 * avgCp * T;
+            let dTheta = 30 * Math.exp(-Math.pow((avghp - 275) / 25, 2)), RC = 2 * Math.sqrt(Math.pow(avgCp, 7) / (Math.pow(avgCp, 7) + Math.pow(25, 7))), RT = -RC * Math.sin(2 * dTheta * Math.PI / 180);
+            return Math.sqrt(Math.pow(dL/sL, 2) + Math.pow(dC/sC, 2) + Math.pow(dH/sH, 2) + RT * (dC/sC) * (dH/sH));
+        }
+
+        const startDrag = (e) => { if(isRevealed) return; isDragging = true; handleWheelMove(e); };
+        const doDrag = (e) => { if (isDragging) { e.preventDefault(); handleWheelMove(e); } };
+        const stopDrag = () => { 
+            if(isDragging) {
+                isDragging = false; 
+                if(hardcoreMode === 'MOVE_LIMIT') {
+                    moveCount++;
+                    if(moveCount >= maxMoves) {
+                        wheelWrapper.classList.add('layer-freeze');
+                        hudModifier.innerText = "變動配額耗盡 // 操控鎖定";
+                    } else {
+                        hudModifier.innerText = `剩餘操作次數 // ${maxMoves - moveCount} 次`;
+                    }
+                }
+            }
+        };
+
+        wheelWrapper.addEventListener('mousedown', startDrag);
+        window.addEventListener('mousemove', doDrag);
+        window.addEventListener('mouseup', stopDrag);
+        wheelWrapper.addEventListener('touchstart', startDrag, { passive: false });
+        window.addEventListener('touchmove', doDrag, { passive: false });
+        window.addEventListener('touchend', stopDrag);
+
+        brightnessSlider.addEventListener('input', () => { if(!isRevealed) { startDeferredTimer(); updateColorOutput(); } });
+        actionBtn.addEventListener('click', () => { if (!isRevealed) triggerVerification(); else initLevel(); });
+
+        function rgbToHsv(r, g, b) {
+            r /= 255; g /= 255; b /= 255;
+            let max = Math.max(r, g, b), min = Math.min(r, g, b), h, s, v = max, d = max - min;
+            s = max === 0 ? 0 : d / max;
+            if (max === min) h = 0;
+            else {
+                switch (max) {
+                    case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                    case g: h = (b - r) / d + 2; break;
+                    case b: h = (r - g) / d + 4; break;
+                }
+                h /= 6;
+            }
+            return { h, s, v };
+        }
+
+        function hsvToRgb(h, s, v) {
+            let r, g, b, i = Math.floor(h * 6), f = h * 6 - i, p = v * (1 - s), q = v * (1 - f * s), t = v * (1 - (1 - f) * s);
+            switch (i % 6) {
+                case 0: r = v, g = t, b = p; break; case 1: r = q, g = v, b = p; break; case 2: r = p, g = v, b = t; break;
+                case 3: r = p, g = q, b = v; break; case 4: r = t, g = p, b = q; break; case 5: r = v, g = p, b = q; break;
+            }
+            return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
+        }
+
+        function rgbToLab(r,g,b) {
+            let rL = r/255, gL = g/255, bL = b/255;
+            rL = rL > 0.04045 ? Math.pow((rL + 0.055) / 1.055, 2.4) : rL / 12.92;
+            gL = gL > 0.04045 ? Math.pow((gL + 0.055) / 1.055, 2.4) : gL / 12.92;
+            bL = bL > 0.04045 ? Math.pow((bL + 0.055) / 1.055, 2.4) : bL / 12.92;
+            let x = (rL * 0.4124 + gL * 0.3576 + bL * 0.1805) * 100, y = (rL * 0.2126 + gL * 0.7152 + bL * 0.0722) * 100, z = (rL * 0.0193 + gL * 0.1192 + bL * 0.9505) * 100;
+            x /= 95.047; y /= 100.000; z /= 108.883;
+            x = x > 0.008856 ? Math.pow(x, 1/3) : (7.787 * x) + (16 / 116);
+            y = y > 0.008856 ? Math.pow(y, 1/3) : (7.787 * y) + (16 / 116);
+            z = z > 0.008856 ? Math.pow(z, 1/3) : (7.787 * z) + (16 / 116);
+            return { l: (116 * y) - 16, a: 500 * (x - y), b: 200 * (y - z) };
+        }
+
+        function labToRgb(l, a, b) {
+            let y = (l + 16) / 116, x = a / 500 + y, z = y - b / 200;
+            x = Math.pow(x, 3) > 0.008856 ? Math.pow(x, 3) : (x - 16 / 116) / 7.787;
+            y = Math.pow(y, 3) > 0.008856 ? Math.pow(y, 3) : (y - 16 / 116) / 7.787;
+            z = Math.pow(z, 3) > 0.008856 ? Math.pow(z, 3) : (z - 16 / 116) / 7.787;
+            x *= 95.047; y *= 100.000; z *= 108.883; x /= 100; y /= 100; z /= 100;
+            let rL = x * 3.2406 + y * -1.5372 + z * -0.4986, gL = x * -0.9689 + y * 1.8758 + z * 0.0415, bL = x * 0.0557 + y * -0.2040 + z * 1.0570;
+            rL = rL > 0.0031308 ? 1.055 * Math.pow(rL, 1/2.4) - 0.055 : 12.92 * rL;
+            gL = gL > 0.0031308 ? 1.055 * Math.pow(gL, 1/2.4) - 0.055 : 12.92 * gL;
+            bL = bL > 0.0031308 ? 1.055 * Math.pow(bL, 1/2.4) - 0.055 : 12.92 * bL;
+            return { r: Math.max(0, Math.min(255, Math.round(rL * 255))), g: Math.max(0, Math.min(255, Math.round(gL * 255))), b: Math.max(0, Math.min(255, Math.round(bL * 255))) };
+        }
+
+        function rgbToHex(r, g, b) { return "#" + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('').toUpperCase(); }
+
+        function animateNumber(element, start, end, duration, appendStr = "") {
+            let startTime = null;
+            function step(timestamp) {
+                if (!startTime) startTime = timestamp;
+                const progress = Math.min((timestamp - startTime) / duration, 1);
+                const easeProgress = 1 - Math.pow(1 - progress, 3);
+                const current = start + easeProgress * (end - start);
+                element.innerText = current.toFixed(appendStr ? 1 : 0) + appendStr;
+                if (progress < 1) window.requestAnimationFrame(step);
+                else element.innerText = end.toFixed(appendStr ? 1 : 0) + appendStr;
+            }
+            window.requestAnimationFrame(step);
+        }
+
+        window.addEventListener('click', (e) => {
+            if (!e.target.closest('.select-node')) {
+                document.querySelectorAll('.select-node').forEach(n => n.classList.remove('open'));
+            }
+        });
+    </script>
+</body>
+</html>

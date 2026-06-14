@@ -3,96 +3,271 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>遊戲選單大廳</title>
+    <title>Games Lobby</title>
     <style>
+        /* 字體設定（保留原 Hev 備用，預設回退至系統科技感字體） */
+        @font-face {
+            font-family: 'Builder Sans';
+            src: url('BuilderSans-SemiBold-600.otf') format('opentype');
+            font-weight: 600;
+        }
+        @font-face {
+            font-family: 'Builder Sans';
+            src: url('BuilderSans-Medium-500.otf') format('opentype');
+            font-weight: 500;
+        }
+
+        :root {
+            --bg: #000000;
+            --fg: #ffffff;
+            --dim: rgba(255, 255, 255, 0.4);
+            --border: rgba(255, 255, 255, 0.1);
+            --accent: #00ffcc; /* 保留原大廳的一點科技青色作為核心亮點 */
+            --mechanic-ease: cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
         * {
-            box-sizing: border-box;
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+            font-family: 'Builder Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1e1e2f, #2a2a40);
-            height: 100vh;
+            background-color: var(--bg);
+            color: var(--fg);
+            line-height: 1.6;
+            min-height: 100vh;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
-            color: #fff;
+            overflow-x: hidden;
         }
 
-        .menu-container {
-            text-align: center;
-            background: rgba(255, 255, 255, 0.05);
-            padding: 3rem;
-            border-radius: 16px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            max-width: 400px;
-            width: 90%;
+        /* 複製：科幻網格背景 */
+        .grid-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: linear-gradient(var(--border) 1px, transparent 1px),
+                              linear-gradient(90deg, var(--border) 1px, transparent 1px);
+            background-size: 50px 50px;
+            z-index: -1;
+            opacity: 0.3;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 850px;
+            padding: 80px 40px;
+        }
+
+        /* 複製：左側粗線 Header */
+        header {
+            margin-bottom: 60px;
+            border-left: 4px solid var(--fg);
+            padding-left: 30px;
+        }
+
+        .sys-path {
+            font-size: 0.7rem;
+            letter-spacing: 3px;
+            color: var(--dim);
+            text-transform: uppercase;
+            font-weight: 600;
         }
 
         h1 {
-            margin-bottom: 2rem;
-            font-size: 2rem;
-            letter-spacing: 2px;
-            text-shadow: 0 2px 10px rgba(0, 255, 204, 0.3);
+            font-size: 3.5rem;
+            font-weight: 600;
+            letter-spacing: -1px;
+            line-height: 1;
+            margin: 10px 0;
         }
 
-        .button-group {
+        /* 複製：Protocol Box 模組塊 */
+        .protocol-box {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            padding: 40px;
+            margin-bottom: 30px;
+            position: relative;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: moduleLoad 1s var(--mechanic-ease) forwards;
+        }
+
+        .protocol-box::before {
+            content: "SYSTEM_MODULE_ACTIVE";
+            position: absolute;
+            top: -10px;
+            right: 20px;
+            background: var(--bg);
+            padding: 0 10px;
+            font-size: 0.6rem;
+            color: var(--dim);
+            letter-spacing: 2px;
+        }
+
+        h2 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 25px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            display: flex;
+            align-items: center;
+        }
+
+        h2::before {
+            content: "";
+            width: 10px;
+            height: 10px;
+            background: var(--fg);
+            margin-right: 15px;
+        }
+
+        /* 遊戲選單按鈕群組 */
+        .game-menu {
             display: flex;
             flex-direction: column;
-            gap: 1.5rem;
+            gap: 15px;
         }
 
-        .btn {
-            display: block;
-            padding: 1rem 2rem;
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: #fff;
+        /* 核心按鈕樣式：全面轉化為 Hev System 的按鈕質感 */
+        .game-btn {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            color: var(--fg);
             text-decoration: none;
-            border-radius: 8px;
-            transition: all 0.3s ease;
+            padding: 20px 30px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+            transition: all 0.3s var(--mechanic-ease);
+        }
+
+        .game-btn span.status {
+            font-size: 0.75rem;
+            color: var(--dim);
+            letter-spacing: 2px;
             text-transform: uppercase;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            font-weight: 500;
+            border: 1px solid var(--border);
+            padding: 4px 12px;
+            transition: all 0.3s var(--mechanic-ease);
         }
 
-        /* 3D 迷宮按鈕樣式 */
-        .btn-maze {
-            background: linear-gradient(45deg, #ff416c, #ff4b2b);
+        /* 滑鼠懸停特效：寬度/間距微幅擴張、邊框與文字變亮 */
+        .game-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--fg);
+            padding-left: 40px;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.05);
         }
 
-        .btn-maze:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(255, 65, 108, 0.4);
+        .game-btn:hover span.status {
+            color: var(--bg);
+            background: var(--fg);
+            border-color: var(--fg);
         }
 
-        /* 色差遊戲按鈕樣式 */
-        .btn-color {
-            background: linear-gradient(45deg, #00b4db, #0083b0);
+        /* 特殊高亮按鈕（例如核心挑戰） */
+        .btn-accent-glow {
+            border-color: rgba(0, 255, 204, 0.3);
+        }
+        .btn-accent-glow:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.15);
+        }
+        .btn-accent-glow:hover span.status {
+            background: var(--accent);
+            color: var(--bg);
+            border-color: var(--accent);
         }
 
-        .btn-color:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(0, 180, 219, 0.4);
+        /* 動畫效果 */
+        @keyframes moduleLoad {
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        .btn:active {
-            transform: translateY(1px);
+        footer {
+            margin-top: auto;
+            padding: 40px;
+            font-size: 0.65rem;
+            color: var(--dim);
+            letter-spacing: 2px;
+            text-align: center;
+        }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 2.5rem; }
+            .protocol-box { padding: 25px; }
+            .game-btn { font-size: 0.95rem; padding: 15px 20px; }
+            .game-btn:hover { padding-left: 25px; }
         }
     </style>
 </head>
 <body>
 
-    <div class="menu-container">
-        <h1>遊戲大廳</h1>
-        <div class="button-group">
-            <a href="3Dmaze.html" class="btn btn-maze">闖關 3D 迷宮</a>
-            
-            <a href="DifferentColor.html" class="btn btn-color">核心色網挑戰</a>
-        </div>
+    <div class="grid-overlay"></div>
+
+    <div class="container">
+        <header>
+            <span class="sys-path">HEV // HOST_TERMINAL // MATRIX_SELECTION</span>
+            <h1>遊戲大廳</h1>
+        </header>
+
+        <section class="protocol-box">
+            <h2>主要核心程序 / PRIMARY DIRECTIVES</h2>
+            <div class="game-menu">
+                <a href="3Dmaze.html" class="game-btn">
+                    闖關 3D 迷宮
+                    <span class="status">[ ONLINE ]</span>
+                </a>
+                <a href="DifferentColor.html" class="game-btn btn-accent-glow">
+                    核心色網挑戰
+                    <span class="status" style="color: var(--accent);">[ CORE_SYS ]</span>
+                </a>
+            </div>
+        </section>
+
+        <section class="protocol-box" style="animation-delay: 0.15s;">
+            <h2>實驗性分流協定 / SECTOR LABS</h2>
+            <div class="game-menu">
+                <a href="MazeLabs.html" class="game-btn">
+                    迷宮實驗室 (MazeLabs)
+                    <span class="status">[ TEST_BED ]</span>
+                </a>
+                <a href="DClabs.html" class="game-btn">
+                    色彩研究室 (DClabs)
+                    <span class="status">[ ANALYZING ]</span>
+                </a>
+                <a href="LittleMinesweeper.html" class="game-btn">
+                    微型踩地雷 (LittleMinesweeper)
+                    <span class="status">[ LOGIC_DET ]</span>
+                </a>
+            </div>
+        </section>
+
+        <section class="protocol-box" style="animation-delay: 0.3s;">
+            <h2>遺留數據歸檔 / LEGACY REPOSITORY</h2>
+            <div class="game-menu">
+                <a href="old3Dmaze.html" class="game-btn" style="opacity: 0.7;">
+                    舊版 3D 迷宮 (old3Dmaze)
+                    <span class="status">[ ARCHIVED ]</span>
+                </a>
+            </div>
+        </section>
+
+        <footer>
+            HEV CENTRAL GAME MATRIX // HOST_VERSION 3.0 // CONFIDENTIAL DISPATCH
+        </footer>
     </div>
 
 </body>

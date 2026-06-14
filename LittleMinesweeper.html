@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高難度微型望遠鏡踩地雷</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            cursor: none; /* 隱藏原本的滑鼠 */
+            user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            border: 4px solid #333;
+            background: #1e1e1e;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.7);
+        }
+
+        #gameCanvas {
+            display: block;
+        }
+
+        /* 縮小後的望遠鏡（直徑 100px） */
+        #telescope {
+            position: absolute;
+            width: 100px;  
+            height: 100px;
+            border: 3px solid #ff4500; /* 改為橘紅色更顯眼 */
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(255, 69, 0, 0.6), inset 0 0 15px rgba(0,0,0,0.9);
+            pointer-events: none; 
+            transform: translate(-50%, -50%);
+            display: none; 
+            overflow: hidden;
+            background-color: #252525;
+        }
+
+        #zoomCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform-origin: top left;
+        }
+
+        /* 狙擊鏡準心十字線 */
+        #telescope::before, #telescope::after {
+            content: '';
+            position: absolute;
+            background: rgba(255, 69, 0, 0.4);
+        }
+        #telescope::before { top: 50%; left: 0; width: 100%; height: 1px; transform: translateY(-50%); }
+        #telescope::after { left: 50%; top: 0; width: 1px; height: 100%; transform: translateX(-50%); }
+
+        #info {
+            margin-bottom: 15px;
+            font-size: 14px;
+            letter-spacing: 1px;
+            text-align: center;
+            line-height: 1.5;
+        }
+        #status {
+            font-weight: bold;
+            color: #ff4500;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="info">
+        [ 左鍵 ]：探索區塊 | [ 右鍵 ]：標記地雷 <br>
+        任務狀態：<span id="status">準備就緒</span>
+    </div>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div id="telescope">
+            <canvas id="zoomCanvas"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const COLS = 40;
+        const ROWS = 40;
+        const CELL_SIZE = 5; // 每格 5px
+        const MINES_COUNT = 280; // 大幅增加地雷數（約17.5%密度），避免一掀開空一大片
+        const ZOOM_FACTOR = 6;  // 放大倍率
+
+        const container = document.getElementById('game-container');
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const telescope = document.getElementById('telescope');
+        const zoomCanvas = document.getElementById('zoomCanvas');
+        const zoomCtx = zoomCanvas.getContext('2d');
+        const statusText = document.getElementById('status');
+
+        canvas.width = COLS * CELL_SIZE;
+        canvas.height = ROWS * CELL_SIZE;
+
+        zoomCanvas.width = canvas.width * ZOOM_FACTOR;
+        zoomCanvas.height = canvas.height * ZOOM_FACTOR;
+
+        let grid = [];
+        let gameOver = false;
+        let gameWon = false;
+
+        function initGame() {
+            grid = [];
+            gameOver = false;
+            gameWon = false;
+            statusText.innerText = "偵查中...";
+            statusText.style.color = "#ff4500";
+
+            // 建立地圖並加入隨機視覺噪點（seed）
+            for (let r = 0; r < ROWS; r++) {
+                grid[r] = [];
+                for (let c = 0; c < COLS; c++) {
+                    // 讓每格未挖開的灰色、挖開的白色都有輕微的隨機色差
+                    let graySeed = Math.floor(Math.random() * 15); 
+                    grid[r][c] = {
+                        isMine: false,
+                        revealed: false,
+                        flagged: false,
+                        neighborMines: 0,
+                        // 預先決定每格的隨機外觀色彩
+                        colorUnrevealed: `rgb(${45 + graySeed}, ${45 + graySeed}, ${45 + graySeed})`,
+                        colorRevealed: `rgb(${210 + graySeed}, ${210 + graySeed}, ${210 + graySeed})`,
+                        flagOffset: Math.random() * 2 - 1 // 插旗時微幅歪斜，看起來更自然
+                    };
+                }
+            }
+
+            // 純隨機布雷
+            let minesPlaced = 0;
+            while (minesPlaced < MINES_COUNT) {
+                let r = Math.floor(Math.random() * ROWS);
+                let c = Math.floor(Math.random() * COLS);
+                if (!grid[r][c].isMine) {
+                    grid[r][c].isMine = true;
+                    minesPlaced++;
+                }
+            }
+
+            // 計算周圍雷數
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (grid[r][c].isMine) continue;
+                    let count = 0;
+                    for (let dr = -1; dr <= 1; dr++) {
+                        for (let dc = -1; dc <= 1; dc++) {
+                            let nr = r + dr;
+                            let nc = c + dc;
+                            if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+                                if (grid[nr][nc].isMine) count++;
+                            }
+                        }
+                    }
+                    grid[r][c].neighborMines = count;
+                }
+            }
+            draw();
+        }
+
+        // 繪製微型地圖 (5px 每格)
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    let cell = grid[r][c];
+                    let x = c * CELL_SIZE;
+                    let y = r * CELL_SIZE;
+
+                    if (cell.revealed) {
+                        if (cell.isMine) {
+                            ctx.fillStyle = '#ff2222';
+                            ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+                        } else {
+                            ctx.fillStyle = cell.colorRevealed;
+                            ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+                            
+                            if (cell.neighborMines > 0) {
+                                const colors = ['', '#0033cc', '#006600', '#cc0000', '#000066', '#660000', '#006666', '#000000', '#555555'];
+                                ctx.fillStyle = colors[cell.neighborMines];
+                                ctx.fillRect(x + 2, y + 2, 1, 1); 
+                            }
+                        }
+                    } else {
+                        // 使用隨機雜色深灰
+                        ctx.fillStyle = cell.colorUnrevealed;
+                        ctx.fillRect(x, y, CELL_SIZE - 1, CELL_SIZE - 1); 
+
+                        if (cell.flagged) {
+                            ctx.fillStyle = '#ffaa00';
+                            ctx.fillRect(x + 1, y + 1, CELL_SIZE - 3, CELL_SIZE - 3);
+                        }
+                    }
+                }
+            }
+            updateZoom();
+        }
+
+        // 繪製望遠鏡內部 (30px 每格)
+        function updateZoom() {
+            zoomCtx.clearRect(0, 0, zoomCanvas.width, zoomCanvas.height);
+            const Z_CELL = CELL_SIZE * ZOOM_FACTOR; 
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    let cell = grid[r][c];
+                    let x = c * Z_CELL;
+                    let y = r * Z_CELL;
+
+                    if (cell.revealed) {
+                        if (cell.isMine) {
+                            zoomCtx.fillStyle = '#ff2222';
+                            zoomCtx.fillRect(x, y, Z_CELL, Z_CELL);
+                            // 炸彈 💣
+                            zoomCtx.fillStyle = '#000000';
+                            zoomCtx.beginPath();
+                            zoomCtx.arc(x + Z_CELL/2, y + Z_CELL/2, Z_CELL/4, 0, Math.PI*2);
+                            zoomCtx.fill();
+                        } else {
+                            zoomCtx.fillStyle = cell.colorRevealed;
+                            zoomCtx.fillRect(x, y, Z_CELL, Z_CELL);
+                            zoomCtx.strokeStyle = '#cccccc';
+                            zoomCtx.lineWidth = 1;
+                            zoomCtx.strokeRect(x, y, Z_CELL, Z_CELL);
+
+                            if (cell.neighborMines > 0) {
+                                const colors = ['', '#1e88e5', '#43a047', '#e53935', '#8e24aa', '#fb8c00', '#00acc1', '#3949ab', '#424242'];
+                                zoomCtx.fillStyle = colors[cell.neighborMines];
+                                zoomCtx.font = `bold ${Z_CELL * 0.6}px monospace`;
+                                zoomCtx.textAlign = 'center';
+                                zoomCtx.textBaseline = 'middle';
+                                zoomCtx.fillText(cell.neighborMines, x + Z_CELL/2, y + Z_CELL/2);
+                            }
+                        }
+                    } else {
+                        // 未挖開的立體方塊與噪點
+                        zoomCtx.fillStyle = cell.colorUnrevealed;
+                        zoomCtx.fillRect(x, y, Z_CELL, Z_CELL);
+                        
+                        // 讓格線有老舊戰術螢幕的感覺
+                        zoomCtx.strokeStyle = '#555555';
+                        zoomCtx.lineWidth = 1;
+                        zoomCtx.strokeRect(x, y, Z_CELL, Z_CELL);
+
+                        if (cell.flagged) {
+                            // 帶有稍微隨機偏角的旗子 🚩
+                            let ox = cell.flagOffset * 2;
+                            zoomCtx.fillStyle = '#ff3333';
+                            zoomCtx.beginPath();
+                            zoomCtx.moveTo(x + Z_CELL * 0.35 + ox, y + Z_CELL * 0.2);
+                            zoomCtx.lineTo(x + Z_CELL * 0.75 + ox, y + Z_CELL * 0.4);
+                            zoomCtx.lineTo(x + Z_CELL * 0.35 + ox, y + Z_CELL * 0.6);
+                            zoomCtx.fill();
+                            
+                            zoomCtx.strokeStyle = '#ffffff';
+                            zoomCtx.lineWidth = 2;
+                            zoomCtx.beginPath();
+                            zoomCtx.moveTo(x + Z_CELL * 0.35 + ox, y + Z_CELL * 0.2);
+                            zoomCtx.lineTo(x + Z_CELL * 0.35 + ox, y + Z_CELL * 0.8);
+                            zoomCtx.stroke();
+                        }
+                    }
+                }
+            }
+        }
+
+        // 擴散演算法
+        function revealCell(r, c) {
+            if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return;
+            let cell = grid[r][c];
+            if (cell.revealed || cell.flagged) return;
+
+            cell.revealed = true;
+
+            // 因為地雷變多且隨機，遇到 0 的連鎖反應會自然變小，不易一次解開全圖
+            if (cell.neighborMines === 0 && !cell.isMine) {
+                for (let dr = -1; dr <= 1; dr++) {
+                    for (let dc = -1; dc <= 1; dc++) {
+                        revealCell(r + dr, c + dc);
+                    }
+                }
+            }
+        }
+
+        function checkWin() {
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (!grid[r][c].isMine && !grid[r][c].revealed) return false;
+                }
+            }
+            return true;
+        }
+
+        function doGameOver() {
+            gameOver = true;
+            statusText.innerText = "❌ 任務失敗！點擊地圖重組戰局";
+            statusText.style.color = "#ff2222";
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (grid[r][c].isMine) grid[r][c].revealed = true;
+                }
+            }
+            draw();
+        }
+
+        // 望遠鏡隨滑鼠移動
+        container.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            if (mouseX >= 0 && mouseX <= rect.width && mouseY >= 0 && mouseY <= rect.height) {
+                telescope.style.display = 'block';
+                telescope.style.left = mouseX + 'px';
+                telescope.style.top = mouseY + 'px';
+
+                // 修正公式：50 是目前望遠鏡新半徑 (100/2)
+                const zoomX = -(mouseX * ZOOM_FACTOR) + 50; 
+                const zoomY = -(mouseY * ZOOM_FACTOR) + 50;
+                zoomCanvas.style.left = zoomX + 'px';
+                zoomCanvas.style.top = zoomY + 'px';
+            } else {
+                telescope.style.display = 'none';
+            }
+        });
+
+        container.addEventListener('mouseleave', () => {
+            telescope.style.display = 'none';
+        });
+
+        container.addEventListener('mousedown', (e) => {
+            if (gameOver || gameWon) {
+                initGame();
+                return;
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            const c = Math.floor(mouseX / CELL_SIZE);
+            const r = Math.floor(mouseY / CELL_SIZE);
+
+            if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
+                if (e.button === 0) { 
+                    if (grid[r][c].flagged) return;
+                    if (grid[r][c].isMine) {
+                        doGameOver();
+                    } else {
+                        revealCell(r, c);
+                        if (checkWin()) {
+                            gameWon = true;
+                            statusText.innerText = "🏆 任務成功！點擊畫面重新挑戰";
+                            statusText.style.color = "#00ff00";
+                        }
+                        draw();
+                    }
+                } else if (e.button === 2) { 
+                    grid[r][c].flagged = !grid[r][c].flagged;
+                    draw();
+                }
+            }
+        });
+
+        container.addEventListener('contextmenu', e => e.preventDefault());
+
+        initGame();
+    </script>
+</body>
+</html>
