@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2067 終極解謎互動</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 100vw;
+            height: 100vh; /* 改回 100vh，純靠滑鼠軌跡觸發 */
+            background-color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            overflow: hidden;
+        }
+
+        /* 分數顯示 */
+        .score-board {
+            position: fixed;
+            top: 5%;
+            left: 5%;
+            font-size: 2rem;
+            font-weight: bold;
+            color: #111;
+            z-index: 20;
+        }
+
+        /* 固定在螢幕上的巨大倒計時 */
+        .countdown-container {
+            position: fixed;
+            top: 15%;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .countdown-title {
+            font-size: 1.5rem;
+            color: #888;
+            letter-spacing: 4px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .countdown-time {
+            font-size: 5rem;
+            font-weight: 900;
+            color: #111;
+            letter-spacing: -2px;
+        }
+
+        /* 雙手容器 */
+        .hand-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 85vw;
+            max-width: 1300px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        /* 巨大的手 + 調整延遲感(Transition) */
+        .hand {
+            width: 400px; /* 再次放大 */
+            height: auto;
+            /* 使用 cubic-bezier 製造出一點拉扯、遲滯的錯位感 */
+            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1); 
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 分數板 -->
+    <div class="score-board">SCORE: <span id="score-val">0</span></div>
+
+    <!-- 巨大的倒計時區塊 -->
+    <div class="countdown-container">
+        <div class="countdown-title">Distance to 2067 / 06 / 07</div>
+        <div class="countdown-time" id="timer">00d 00h 00m 00s</div>
+    </div>
+
+    <!-- 巨大的雙手 -->
+    <div class="hand-container">
+        <img src="LHand.png" alt="Left Hand" class="hand" id="l-hand">
+        <img src="RHand.png" alt="Right Hand" class="hand" id="r-hand">
+    </div>
+
+    <script>
+        const lHand = document.getElementById('l-hand');
+        const rHand = document.getElementById('r-hand');
+        const timerDisplay = document.getElementById('timer');
+        const scoreDisplay = document.getElementById('score-val');
+
+        let score = 0;
+        const targetDate = new Date('2067-06-07T00:00:00').getTime();
+
+        // 1. 倒計時邏輯
+        function updateCountdown() {
+            const now = new Date().getTime();
+            const difference = targetDate - now;
+            if (difference <= 0) {
+                timerDisplay.innerHTML = "THE TIME HAS COME";
+                return;
+            }
+            const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+
+            timerDisplay.innerHTML = `${days.toString().padStart(2,'0')}d ${hours.toString().padStart(2,'0')}h ${minutes.toString().padStart(2,'0')}m ${seconds.toString().padStart(2,'0')}s`;
+        }
+        setInterval(updateCountdown, 1000);
+        updateCountdown();
+
+        // 2. 音效重疊控制 (最多同時 3 個)
+        const maxAudioInstances = 3;
+        const audioPool = [];
+
+        function play67Sound() {
+            // 清理已經撥放完畢的音效
+            for (let i = audioPool.length - 1; i >= 0; i--) {
+                if (audioPool[i].ended) {
+                    audioPool.splice(i, 1);
+                }
+            }
+
+            // 如果目前同時撥放的數量小於上限，就加入新音效
+            if (audioPool.length < maxAudioInstances) {
+                const audio = new Audio('67.mp3');
+                audioPool.push(audio);
+                audio.play().catch(e => console.log("請先點擊網頁以允許撥放音效"));
+            }
+        }
+
+        // 3. 滑鼠移動（手部靈敏度與錯位）
+        const intensity = 1.2; // 提高靈敏度
+        let lastY = window.innerHeight / 2;
+        
+        // 軌跡偵測變數
+        let directionHistory = []; // 紀錄方向改變歷史 ['down', 'up', 'down']
+        let lastDirection = null;
+        const threshold = 15; // 移動超過 15 像素才算有效方向改變，防止微幅抖動誤判
+
+        window.addEventListener('mousemove', (e) => {
+            const mouseY = e.clientY;
+            const centerY = window.innerHeight / 2;
+            const deltaY = mouseY - centerY;
+
+            // 手部物理位移
+            lHand.style.transform = `translateY(${-deltaY * intensity}px)`;
+            rHand.style.transform = `translateY(${deltaY * intensity}px)`;
+
+            // --- 軌跡偵測邏輯 ---
+            const currentDelta = mouseY - lastY;
+
+            if (Math.abs(currentDelta) > threshold) {
+                const currentDirection = currentDelta > 0 ? 'down' : 'up';
+
+                if (currentDirection !== lastDirection) {
+                    // 方向發生改變，記錄下來
+                    directionHistory.push(currentDirection);
+                    lastDirection = currentDirection;
+
+                    // 只保留最後三個動作
+                    if (directionHistory.length > 3) {
+                        directionHistory.shift();
+                    }
+
+                    // 檢查是否符合 [down, up, down] 或 [up, down, up]
+                    const historyStr = directionHistory.join('-');
+                    if (historyStr === 'down-up-down' || historyStr === 'up-down-up') {
+                        // 觸發成功！
+                        score += 67;
+                        scoreDisplay.innerText = score;
+                        play67Sound();
+
+                        // 觸發後清空歷史，強迫重新重新來一次
+                        directionHistory = [];
+                        lastDirection = null;
+                    }
+                }
+                lastY = mouseY;
+            }
+        });
+    </script>
+</body>
+</html>
