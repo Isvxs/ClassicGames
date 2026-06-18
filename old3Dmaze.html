@@ -2,329 +2,569 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Windows 95 3D Maze</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Games Lobby</title>
     <style>
+        @font-face {
+            font-family: 'Builder Sans';
+            src: url('BuilderSans-SemiBold-600.otf') format('opentype');
+            font-weight: 600;
+        }
+        @font-face {
+            font-family: 'Builder Sans';
+            src: url('BuilderSans-Medium-500.otf') format('opentype');
+            font-weight: 500;
+        }
+
+        :root {
+            --bg: #000000;
+            --fg: #ffffff;
+            --dim: rgba(255, 255, 255, 0.4);
+            --border: rgba(255, 255, 255, 0.1);
+            --accent: #00ffcc;
+            --mechanic-ease: cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
         * {
-            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            /* 防止手機上長按彈出選單或選取文字 */
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            user-select: none;
+            box-sizing: border-box;
+            font-family: 'Builder Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        body, html {
+
+        body {
+            background-color: var(--bg);
+            color: var(--fg);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+        }
+
+        .grid-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-            overflow: hidden;
-            background-color: #000;
-            cursor: crosshair;
+            background-image: linear-gradient(var(--border) 1px, transparent 1px),
+                              linear-gradient(90deg, var(--border) 1px, transparent 1px);
+            background-size: 50px 50px;
+            z-index: -1;
+            opacity: 0.3;
         }
-        #canvas {
-            display: block;
+
+        .container {
+            width: 100%;
+            max-width: 850px;
+            padding: 80px 40px;
+        }
+
+        header {
+            margin-bottom: 60px;
+            border-left: 4px solid var(--fg);
+            padding-left: 30px;
+        }
+
+        .sys-path {
+            font-size: 0.7rem;
+            letter-spacing: 3px;
+            color: var(--dim);
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 600;
+            letter-spacing: -1px;
+            line-height: 1;
+            margin: 10px 0;
+        }
+
+        .protocol-box {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            padding: 40px;
+            margin-bottom: 30px;
+            position: relative;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: moduleLoad 1s var(--mechanic-ease) forwards;
+        }
+
+        .protocol-box::before {
+            content: "SYSTEM_MODULE_ACTIVE";
+            position: absolute;
+            top: -10px;
+            right: 20px;
+            background: var(--bg);
+            padding: 0 10px;
+            font-size: 0.6rem;
+            color: var(--dim);
+            letter-spacing: 2px;
+        }
+
+        h2 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 25px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            display: flex;
+            align-items: center;
+        }
+
+        h2::before {
+            content: "";
+            width: 10px;
+            height: 10px;
+            background: var(--fg);
+            margin-right: 15px;
+        }
+
+        .game-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .game-btn {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            color: var(--fg);
+            text-decoration: none;
+            padding: 20px 30px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+            transition: all 0.3s var(--mechanic-ease);
+        }
+
+        .game-btn span.status {
+            font-size: 0.75rem;
+            color: var(--dim);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-weight: 500;
+            border: 1px solid var(--border);
+            padding: 4px 12px;
+            transition: all 0.3s var(--mechanic-ease);
+        }
+
+        .game-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--fg);
+            padding-left: 40px;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.05);
+        }
+
+        .game-btn:hover span.status {
+            color: var(--bg);
+            background: var(--fg);
+            border-color: var(--fg);
+        }
+
+        .btn-accent-glow {
+            border-color: rgba(0, 255, 204, 0.3);
+        }
+        .btn-accent-glow:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.15);
+        }
+        .btn-accent-glow:hover span.status {
+            background: var(--accent);
+            color: var(--bg);
+            border-color: var(--accent);
+        }
+
+        @keyframes moduleLoad {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        footer {
+            margin-top: auto;
+            padding: 40px;
+            font-size: 0.65rem;
+            color: var(--dim);
+            letter-spacing: 2px;
+            text-align: center;
+        }
+
+        /* ==================== MGC (MINI GAMES' CONSOLE) DEV OS ==================== */
+        #secret-terminal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100vw;
             height: 100vh;
-            image-rendering: pixelated; /* 完美還原 90 年代低解析度顆粒感 */
+            background: #000000;
+            z-index: 99999;
+            color: #ffffff;
+            font-family: monospace;
+            padding: 20px 25px;
+            box-sizing: border-box;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* 頂部流水載入線 */
+        .term-header {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        .term-title {
+            font-size: 12px;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+        .loading-bar-container {
+            border-top: 1px solid #ffffff;
+            border-bottom: 1px solid #ffffff;
+            padding: 1px 0;
+        }
+        .loading-bar {
+            height: 8px;
+            background: repeating-linear-gradient(
+                90deg,
+                #ffffff,
+                #ffffff 8px,
+                transparent 8px,
+                transparent 16px
+            );
+            width: 0%;
+            transition: width 0.05s linear;
+        }
+
+        /* 整合型矩陣日誌視窗（包含大型 ASCII 與事件輸出流） */
+        .log-matrix-stream {
+            flex-grow: 1;
+            overflow-y: auto;
+            font-size: 11px;
+            line-height: 1.3;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.01);
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .log-line {
+            margin-bottom: 3px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        
+        /* 專門用來處理不換行的大型高密度 ASCII 容器 */
+        .ascii-block {
+            font-family: monospace;
+            white-space: pre;
+            line-height: 1.1;
+            font-size: 9px;
+            letter-spacing: 0px;
+            color: #ffffff;
+            margin-bottom: 20px;
+            overflow-x: auto;
+            display: block;
+        }
+
+        /* 日誌狀態色調映射 */
+        .log-info { color: #ffffff; }
+        .log-warn { color: #ffcc00; }
+        .log-error { color: #ff5555; }
+        .log-success { color: #00ffcc; }
+        .log-input { color: #888888; }
+
+        /* MGC 命令列輸入區（無多餘提示） */
+        .cmd-line-wrapper {
+            display: none; 
+            align-items: center;
+            font-size: 13px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            padding-top: 10px;
+        }
+        .cmd-prompt {
+            color: #ffffff;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        #cmd-input {
+            background: transparent;
+            border: none;
+            color: #ffffff;
+            font-family: monospace;
+            font-size: 13px;
+            outline: none;
+            flex-grow: 1;
+        }
+
+        .term-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            font-size: 11px;
+            color: var(--dim);
+            margin-top: 5px;
+        }
+        .barcode {
+            font-family: monospace;
+            font-size: 8px;
+            letter-spacing: -1px;
+            line-height: 0.8;
+            white-space: pre;
+        }
+
+        .log-matrix-stream::-webkit-scrollbar { width: 5px; }
+        .log-matrix-stream::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); }
+
+        @media (max-width: 768px) {
+            .ascii-block { font-size: 4px; }
+            #secret-terminal { padding: 10px; }
         }
     </style>
 </head>
 <body>
 
-    <canvas id="canvas" width="320" height="240"></canvas>
+    <div class="grid-overlay"></div>
 
-<script>
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
+    <div class="container">
+        <header>
+            <span class="sys-path">HEV // HOST_TERMINAL // MATRIX_SELECTION</span>
+            <h1>遊戲大廳</h1>
+        </header>
 
-// --- 迷宮地圖配置 (0:空地, 1:紅磚牆, 2:藍條紋牆, 3:太極, 4:老鼠) ---
-const map = [
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
-    [1,0,1,0,1,0,1,1,1,0,1,0,1,0,1],
-    [1,0,1,0,0,0,1,3,1,0,0,0,1,0,1],
-    [1,0,1,1,1,1,1,0,1,1,1,1,1,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,1,1,0,1,1,1,0,1,1,1,0,1,1,1],
-    [1,0,0,0,1,4,0,0,0,4,1,0,0,0,1],
-    [1,1,1,0,1,1,1,0,1,1,1,0,1,1,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,1,1,1,1,1,0,1,1,1,1,1,0,1],
-    [1,0,1,0,0,0,1,0,1,0,0,0,1,0,1],
-    [1,0,1,0,1,0,1,1,1,0,1,0,1,0,1],
-    [1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
-];
+        <section class="protocol-box">
+            <h2>主要核心程序 / PRIMARY DIRECTIVES</h2>
+            <div class="game-menu">
+                <a href="3Dmaze.html" class="game-btn">闖關 3D 迷宮<span class="status">[ ONLINE ]</span></a>
+                <a href="DifferentColor.html" class="game-btn btn-accent-glow">核心色網挑戰<span class="status" style="color: var(--accent);">[ CORE_SYS ]</span></a>
+            </div>
+        </section>
 
-// --- 玩家物理狀態 ---
-let posX = 1.5, posY = 1.5; 
-let dirX = 1, dirY = 0;     
-let planeX = 0, planeY = 0.66; 
-let currentAngle = Math.atan2(dirY, dirX);
-
-// 速度參數
-const MOVE_SPEED = 0.05;
-const ROT_SPEED = 0.04;
-
-// 天地翻轉狀態
-let isUpsideDown = false;
-
-// --- 統一控制狀態 (相容鍵盤與觸控) ---
-const controls = {
-    forward: false,
-    backward: false,
-    left: false,
-    right: false
-};
-
-// --- 1. 鍵盤事件監聽 ---
-window.addEventListener('keydown', (e) => {
-    if (['w', 'W', 'ArrowUp'].includes(e.key)) controls.forward = true;
-    if (['s', 'S', 'ArrowDown'].includes(e.key)) controls.backward = true;
-    if (['a', 'A', 'ArrowLeft'].includes(e.key)) controls.left = true;
-    if (['d', 'D', 'ArrowRight'].includes(e.key)) controls.right = true;
-});
-
-window.addEventListener('keyup', (e) => {
-    if (['w', 'W', 'ArrowUp'].includes(e.key)) controls.forward = false;
-    if (['s', 'S', 'ArrowDown'].includes(e.key)) controls.backward = false;
-    if (['a', 'A', 'ArrowLeft'].includes(e.key)) controls.left = false;
-    if (['d', 'D', 'ArrowRight'].includes(e.key)) controls.right = false;
-});
-
-// --- 2. 行動裝置觸控事件監聽 (支援多點觸控) ---
-function handleTouches(e) {
-    e.preventDefault(); // 防止畫面滾動或縮放
-    
-    // 重設狀態
-    controls.forward = false;
-    controls.backward = false;
-    controls.left = false;
-    controls.right = false;
-
-    const screenWidth = window.innerWidth;
-    const screenHeight = window.innerHeight;
-
-    // 遍歷當前所有手指的觸控點
-    for (let i = 0; i < e.touches.length; i++) {
-        const touch = e.touches[i];
-        const x = touch.clientX;
-        const y = touch.clientY;
-
-        // 核心十字判定演算法
-        // 計算觸控點相對於螢幕中心的相對座標
-        const dx = x - (screenWidth / 2);
-        const dy = y - (screenHeight / 2);
-
-        // 比較水平距離與垂直距離，決定觸發哪個方向
-        if (Math.abs(dx) > Math.abs(dy)) {
-            if (dx > 0) controls.right = true;
-            else        controls.left = true;
-        } else {
-            if (dy > 0) controls.backward = true;
-            else        controls.forward = true;
-        }
-    }
-}
-
-canvas.addEventListener('touchstart', handleTouches, { passive: false });
-canvas.addEventListener('touchmove', handleTouches, { passive: false });
-canvas.addEventListener('touchend', (e) => {
-    if (e.touches.length === 0) {
-        controls.forward = false;
-        controls.backward = false;
-        controls.left = false;
-        controls.right = false;
-    } else {
-        handleTouches(e);
-    }
-}, { passive: false });
+        <section class="protocol-box" style="animation-delay: 0.15s;">
+            <h2>實驗性分流協定 / SECTOR LABS</h2>
+            <div class="game-menu">
+                <a href="MazeLabs.html" class="game-btn">迷宮實驗室 (MazeLabs)<span class="status">[ TEST_BED ]</span></a>
+                <a href="DClabs.html" class="game-btn">色彩研究室 (DClabs)<span class="status">[ ANALYZING ]</span></a>
+                <a href="LittleMinesweeper.html" class="game-btn">微型踩地雷 (LittleMinesweeper)<span class="status">[ LOGIC_DET ]</span></a>
+            </div>
+        </section>
 
 
-// --- 紋理生成器 ---
-const texSize = 64;
-const textures = {};
+        <section class="protocol-box" style="animation-delay: 0.3s;">
+            <h2>經典版本 / ARCHIVE</h2>
+            <div class="game-menu">
+                <a href="old3Dmaze.html" class="game-btn">舊版 3D 迷宮<span class="status">[ LEGACY ]</span></a>
+            </div>
+        </section>
 
-function createTextures() {
-    // 1. 經典紅磚牆
-    const bCanvas = document.createElement('canvas'); bCanvas.width = texSize; bCanvas.height = texSize;
-    const bCtx = bCanvas.getContext('2d');
-    bCtx.fillStyle = '#990000'; bCtx.fillRect(0, 0, texSize, texSize);
-    bCtx.fillStyle = '#dfdfdf';
-    for(let i=0; i<texSize; i+=8) bCtx.fillRect(0, i, texSize, 1);
-    for(let i=0; i<texSize; i+=8) {
-        let offset = (i / 8) % 2 * 8;
-        for(let j=offset; j<texSize+offset; j+=16) bCtx.fillRect(j % texSize, i, 1, 8);
-    }
-    textures[1] = bCtx.getImageData(0, 0, texSize, texSize);
+        <footer>HEV CENTRAL GAME MATRIX // HOST_VERSION 3.0</footer>
+    </div>
 
-    // 2. 藍色條紋牆
-    const blCanvas = document.createElement('canvas'); blCanvas.width = texSize; blCanvas.height = texSize;
-    const blCtx = blCanvas.getContext('2d');
-    blCtx.fillStyle = '#00007f'; blCtx.fillRect(0,0,texSize,texSize);
-    blCtx.fillStyle = '#0000ff';
-    for(let i=0; i<texSize; i+=16) blCtx.fillRect(i, 0, 8, texSize);
-    textures[2] = blCtx.getImageData(0, 0, texSize, texSize);
+    <div id="secret-terminal">
+        <div class="term-header">
+            <div class="term-title" id="load-status-title">MGC_INITIALIZATION_PROTOCOL_PENDING...</div>
+            <div class="loading-bar-container">
+                <div class="loading-bar" id="progress-bar-fill"></div>
+            </div>
+        </div>
 
-    // 3. 太極圖牆面
-    const tCanvas = document.createElement('canvas'); tCanvas.width = texSize; tCanvas.height = texSize;
-    const tCtx = tCanvas.getContext('2d');
-    tCtx.fillStyle = '#fff'; tCtx.fillRect(0,0,texSize,texSize);
-    tCtx.fillStyle = '#000'; tCtx.beginPath(); tCtx.arc(32,32,28,0,Math.PI*2); tCtx.stroke();
-    tCtx.beginPath(); tCtx.arc(32,32,28,Math.PI/2, Math.PI*1.5); tCtx.fill();
-    tCtx.beginPath(); tCtx.arc(32,18,14,0,Math.PI*2); tCtx.fill();
-    tCtx.fillStyle = '#fff'; tCtx.beginPath(); tCtx.arc(32,46,14,0,Math.PI*2); tCtx.fill();
-    tCtx.fillStyle = '#000'; tCtx.beginPath(); tCtx.arc(32,46,4,0,Math.PI*2); tCtx.fill();
-    tCtx.fillStyle = '#fff'; tCtx.beginPath(); tCtx.arc(32,18,4,0,Math.PI*2); tCtx.fill();
-    textures[3] = tCtx.getImageData(0, 0, texSize, texSize);
+        <div class="log-matrix-stream" id="log-stream-anchor"></div>
 
-    // 4. 經典老鼠
-    const mCanvas = document.createElement('canvas'); mCanvas.width = texSize; mCanvas.height = texSize;
-    const mCtx = mCanvas.getContext('2d');
-    mCtx.fillStyle = '#555'; mCtx.fillRect(0,0,texSize,texSize);
-    mCtx.fillStyle = '#d8d8d8'; mCtx.fillRect(16, 30, 32, 16); mCtx.fillRect(40, 24, 12, 12);
-    mCtx.fillStyle = '#ffb6c1'; mCtx.fillRect(42, 20, 4, 4); mCtx.fillRect(52, 28, 2, 2);
-    mCtx.fillStyle = '#000'; mCtx.fillRect(48, 26, 2, 2);
-    textures[4] = mCtx.getImageData(0, 0, texSize, texSize);
-}
-createTextures();
+        <div class="cmd-line-wrapper" id="cmd-wrapper">
+            <span class="cmd-prompt">></span>
+            <input type="text" id="cmd-input" autocomplete="off" spellcheck="false">
+        </div>
 
-function getGrid(x, y) {
-    if (x < 0 || x >= 15 || y < 0 || y >= 15) return 1;
-    return map[Math.floor(y)][Math.floor(x)];
-}
+        <div class="term-footer">
+            <div>MGC // SYS_ENGINE_ACTIVE</div>
+            <div class="barcode">||||| | |||| ||| |||| | ||<br>||||| | |||| ||| |||| | ||</div>
+        </div>
+    </div>
 
-// --- 更新位置與碰撞邏輯 ---
-function update() {
-    // 踩到太極觸發翻轉
-    if (Math.floor(posX) === 7 && Math.floor(posY) === 3) {
-        isUpsideDown = true;
-    } else if (Math.floor(posX) === 1 && Math.floor(posY) === 1) {
-        isUpsideDown = false; 
-    }
+    <script>
+        // MGC 系統設定參數
+        const MGC_VERSION = "v4.12.0-SENTRY.IV";
+        const MGC_BUILD_DATE = "2026-06-18 20:37:53"; // 當前最新部署時間戳
 
-    let moveX = 0;
-    let moveY = 0;
+        let keyBuffer = "";
+        const terminal = document.getElementById("secret-terminal");
+        const progressBar = document.getElementById("progress-bar-fill");
+        const loadTitle = document.getElementById("load-status-title");
+        const logStream = document.getElementById("log-stream-anchor");
+        const cmdWrapper = document.getElementById("cmd-wrapper");
+        const cmdInput = document.getElementById("cmd-input");
 
-    if (controls.forward) { moveX += dirX; moveY += dirY; }
-    if (controls.backward) { moveX -= dirX; moveY -= dirY; }
+        let terminalOpened = false;
+        let startTime = 0;
+        let elapsedInterval = null;
+        let siteLaunchTimeStr = "";
 
-    if (moveX !== 0 || moveY !== 0) {
-        let nextX = posX + moveX * MOVE_SPEED;
-        let nextY = posY + moveY * MOVE_SPEED;
-        // 碰撞緩衝半徑
-        if (getGrid(nextX + Math.sign(moveX)*0.2, posY) === 0) posX = nextX;
-        if (getGrid(posX, nextY + Math.sign(moveY)*0.2) === 0) posY = nextY;
-    }
+        // 監聽 777 啟動序列
+        window.addEventListener("keydown", (e) => {
+            if (terminalOpened) return;
+            if (e.key === "7" || e.code === "Numpad7") {
+                keyBuffer += "7";
+                if (keyBuffer.includes("777")) {
+                    keyBuffer = "";
+                    executeMGCBootSequence();
+                }
+            } else {
+                keyBuffer = "";
+            }
+        });
 
-    let rot = 0;
-    if (controls.left) rot -= ROT_SPEED;
-    if (controls.right) rot += ROT_SPEED;
+        // 執行 MGC 初始化引導
+        function executeMGCBootSequence() {
+            terminalOpened = true;
+            terminal.style.display = "flex";
+            
+            const now = new Date();
+            siteLaunchTimeStr = now.toTimeString().split(' ')[0];
 
-    if (rot !== 0) {
-        currentAngle += rot;
-        dirX = Math.cos(currentAngle);
-        dirY = Math.sin(currentAngle);
-        planeX = -dirY * 0.66;
-        planeY = dirX * 0.66;
-    }
-}
+            let currentProgress = 0;
+            loadTitle.textContent = "ALLOCATING MGC CORE MEMORY MATRIX...";
 
-// --- 渲染引擎 ---
-function render() {
-    const w = canvas.width;
-    const h = canvas.height;
-    const imgData = ctx.createImageData(w, h);
-    const buffer = new Uint32Array(imgData.data.buffer);
-
-    const topColor = isUpsideDown ? 0xFF000000 : 0xFFFF0000;
-    const bottomColor = isUpsideDown ? 0xFFFF0000 : 0xFF000000;
-
-    for(let y=0; y<h/2; y++) {
-        for(let x=0; x<w; x++) {
-            buffer[y * w + x] = topColor;
-            buffer[(h - 1 - y) * w + x] = bottomColor;
-        }
-    }
-
-    for (let x = 0; x < w; x++) {
-        let cameraX = 2 * x / w - 1;
-        let rayDirX = dirX + planeX * cameraX;
-        let rayDirY = dirY + planeY * cameraX;
-
-        let mapX = Math.floor(posX);
-        let mapY = Math.floor(posY);
-
-        let sideDistX, sideDistY;
-        let deltaDistX = (rayDirX === 0) ? Infinity : Math.abs(1 / rayDirX);
-        let deltaDistY = (rayDirY === 0) ? Infinity : Math.abs(1 / rayDirY);
-        let perpWallDist;
-
-        let stepX, stepY;
-        let hit = 0, side, texNum = 1;
-
-        if (rayDirX < 0) { stepX = -1; sideDistX = (posX - mapX) * deltaDistX; }
-        else             { stepX = 1; sideDistX = (mapX + 1.0 - posX) * deltaDistX; }
-        if (rayDirY < 0) { stepY = -1; sideDistY = (posY - mapY) * deltaDistY; }
-        else             { stepY = 1; sideDistY = (mapY + 1.0 - posY) * deltaDistY; }
-
-        while (hit === 0) {
-            if (sideDistX < sideDistY) { sideDistX += deltaDistX; mapX += stepX; side = 0; }
-            else                       { sideDistY += deltaDistY; mapY += stepY; side = 1; }
-            if (getGrid(mapX, mapY) > 0) { hit = 1; texNum = getGrid(mapX, mapY); }
+            // 機械步進
+            const progressInterval = setInterval(() => {
+                currentProgress += Math.floor(Math.random() * 15) + 5;
+                if (currentProgress >= 100) {
+                    progressBar.style.width = "100%";
+                    clearInterval(progressInterval);
+                    setTimeout(unlockMGCConsole, 250);
+                } else {
+                    progressBar.style.width = currentProgress + "%";
+                }
+            }, 60);
         }
 
-        if (side === 0) perpWallDist = (sideDistX - deltaDistX);
-        else           perpWallDist = (sideDistY - deltaDistY);
+        // 核心解鎖、並將超大型 ASCII 當作日誌起始數據流入日誌流中
+        function unlockMGCConsole() {
+            loadTitle.textContent = "MGC INTERFACE KERNEL UNLOCKED.";
+            cmdWrapper.style.display = "flex";
+            cmdInput.focus();
 
-        let lineHeight = Math.floor(h / perpWallDist);
-        let drawStart = Math.max(0, -lineHeight / 2 + h / 2);
-        let drawEnd = Math.min(h - 1, lineHeight / 2 + h / 2);
+            // 1. 注入自定義超大型 ASCII 藝術字到日誌流中
+            const asciiContainer = document.createElement("pre");
+            asciiContainer.className = "ascii-block";
+            asciiContainer.textContent = `                                                                                                                 
+ ▄▄▄  ▄▄▄                  ▄▄                      ▄▄                             ▄▄▄▄▄▄                                          
+ ███  ███                  ██                      ██                             ▀▀██▀▀                                          
+ ████████   ▄█████▄   ▄███▄██   ▄████▄             ██▄███▄   ▀██  ███               ██     ▄▄█████▄  ██▄  ▄██  ▀██  ██▀  ▄▄█████▄ 
+ ██ ██ ██   ▀ ▄▄▄██  ██▀  ▀██  ██▄▄▄▄██            ██▀  ▀██   ██▄ ██                ██     ██▄▄▄▄ ▀   ██  ██     ████    ██▄▄▄▄ ▀ 
+ ██ ▀▀ ██  ▄██▀▀▀██  ██    ██  ██▀▀▀▀▀▀            ██    ██    ████▀                ██      ▀▀▀▀██▄   ▀█▄▄█▀     ▄██▄     ▀▀▀▀██▄ 
+ ██    ██  ██▄▄▄███  ▀██▄▄███  ▀██▄▄▄▄█            ███▄▄██▀     ███               ▄▄██▄▄   █▄▄▄▄▄██    ████     ▄█▀▀█▄   █▄▄▄▄▄██ 
+ ▀▀    ▀▀   ▀▀▀▀ ▀▀    ▀▀▀ ▀▀    ▀▀▀▀▀             ▀▀ ▀▀▀       ██                ▀▀▀▀▀▀    ▀▀▀▀▀▀      ▀▀     ▀▀▀  ▀▀▀   ▀▀▀▀▀▀  
+                                                              ███              `;
+            logStream.appendChild(asciiContainer);
 
-        let wallX = (side === 0) ? posY + perpWallDist * rayDirY : posX + perpWallDist * rayDirX;
-        wallX -= Math.floor(wallX);
+            // 2. 注入狀態與定時日誌
+            startTime = Date.now();
+            appendLog(`❖ ${siteLaunchTimeStr} [NOW ]Running Isvxs owned's game`, "success");
+            appendLog(`[ SYSTEM ] (00:00:00) ELAPSED_TIME`, "info");
 
-        let texX = Math.floor(wallX * texSize);
-        if (side === 0 && rayDirX > 0) texX = texSize - texX - 1;
-        if (side === 1 && rayDirY < 0) texX = texSize - texX - 1;
+            // 啟動動態時間刷新
+            elapsedInterval = setInterval(updateMGCSystemTime, 1000);
 
-        const texture = textures[texNum] ? textures[texNum].data : textures[1].data;
-
-        for (let y = Math.floor(drawStart); y < Math.floor(drawEnd); y++) {
-            let d = Math.floor(y * 256 - h * 128 + lineHeight * 128);
-            let texY = Math.floor(((d * texSize) / lineHeight) / 256);
-            texY = Math.max(0, Math.min(texSize - 1, texY));
-
-            let texPos = (texY * texSize + texX) * 4;
-            let r = texture[texPos];
-            let g = texture[texPos + 1];
-            let b = texture[texPos + 2];
-
-            if (side === 1) { r >>= 1; g >>= 1; b >>= 1; }
-
-            buffer[y * w + x] = (255 << 24) | (b << 16) | (g << 8) | r;
+            // 全域點擊防丟失焦點
+            terminal.addEventListener("click", () => cmdInput.focus());
+            logStream.scrollTop = logStream.scrollHeight;
         }
-    }
 
-    ctx.putImageData(imgData, 0, 0);
-}
+        // 附加一般日誌（MGC 當作 API 對接）
+        function appendLog(text, type = "info") {
+            const line = document.createElement("div");
+            line.className = `log-line log-${type}`;
+            line.textContent = text;
+            logStream.appendChild(line);
+            logStream.scrollTop = logStream.scrollHeight;
+            return line;
+        }
 
-// 調整畫布尺寸以適應行動端視窗變化
-function resize() {
-    // 保持 320x240 的內部渲染比例，由 CSS 拉伸，以確保穩定的像素鋸齒感
-    canvas.width = 320;
-    canvas.height = 240;
-}
-window.addEventListener('resize', resize);
+        // 綁定/代理真實 DevTools Console API
+        const MGC = {
+            log: (msg) => appendLog(`[LOG] ${msg}`, "info"),
+            error: (msg) => appendLog(`[ERR] ${msg}`, "error"),
+            warn: (msg) => appendLog(`[WARN] ${msg}`, "warn"),
+            clear: () => {
+                logStream.innerHTML = "";
+            }
+        };
+        // 覆寫系統原生主控台，使其即時同步至 MGC 上
+        const _originalLog = console.log;
+        const _originalErr = console.log;
+        console.log = function(...args) { _originalLog.apply(console, args); if(terminalOpened) appendLog(`[CONSOLE.LOG] ${args.join(' ')}`, "info"); };
+        console.error = function(...args) { _originalErr.apply(console, args); if(terminalOpened) appendLog(`[CONSOLE.ERR] ${args.join(' ')}`, "error"); };
 
-function loop() {
-    update();
-    render();
-    requestAnimationFrame(loop);
-}
+        // 定時更新流中的計時日誌行
+        function updateMGCSystemTime() {
+            const diff = Date.now() - startTime;
+            const hrs = String(Math.floor(diff / 3600000)).padStart(2, '0');
+            const mins = String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0');
+            const secs = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
+            
+            const lines = logStream.getElementsByClassName("log-info");
+            let targetLine = null;
+            for(let i=0; i<lines.length; i++) {
+                if(lines[i].textContent.includes("ELAPSED_TIME")) {
+                    targetLine = lines[i];
+                    break;
+                }
+            }
+            const timeString = `[ SYSTEM ] (${hrs}:${mins}:${secs}) ELAPSED_TIME`;
+            if (targetLine) {
+                targetLine.textContent = timeString;
+            } else {
+                appendLog(timeString, "info");
+            }
+        }
 
-resize();
-loop();
-</script>
+        // --- MGC 命令行代碼解析（全英文、與 Devtools 同步） ---
+        cmdInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                const rawCmd = cmdInput.value.trim();
+                if (rawCmd === "") return;
+
+                // 回顯輸入歷史
+                appendLog(`> ${rawCmd}`, "input");
+                cmdInput.value = "";
+
+                // 核心診斷跳轉
+                if (rawCmd === "67") {
+                    window.location.href = "67/67.html";
+                } 
+                // 版本號核心驗證
+                else if (rawCmd === "!V lastUpdated") {
+                    appendLog(`MGC CORE ENGINE VERSION: ${MGC_VERSION}`, "success");
+                    appendLog(`LAST DISPATCH DEPLOYMENT: ${MGC_BUILD_DATE}`, "info");
+                } 
+                // 仿真 DevTools 核心指令
+                else if (rawCmd === "clear()" || rawCmd === "clear" || rawCmd === "cls") {
+                    MGC.clear();
+                    appendLog(`❖ ${siteLaunchTimeStr} [NOW ]Running Isvxs owned's game`, "success");
+                } 
+                else if (rawCmd === "location.reload()") {
+                    window.location.reload();
+                }
+                // 容錯及解析自定義 JavaScript (高仿真 Devtools Console 執行環境)
+                else {
+                    try {
+                        // 嘗試在沙盒內執行
+                        let evalResult = window.eval(rawCmd);
+                        if (evalResult !== undefined) {
+                            appendLog(`< ${evalResult}`, "success");
+                        }
+                    } catch (err) {
+                        appendLog(`Uncaught ${err.name}: ${err.message}`, "error");
+                        appendLog(`    at MGC_CONSOLE_EVAL (<anonymous>:1:1)`, "error");
+                    }
+                }
+            }
+        });
+    </script>
 </body>
 </html>
