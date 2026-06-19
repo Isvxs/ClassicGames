@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,6 +11,7 @@
             src: url('BuilderSans-SemiBold-600.otf') format('opentype');
             font-weight: 600;
         }
+
         @font-face {
             font-family: 'Builder Sans';
             src: url('BuilderSans-Medium-500.otf') format('opentype');
@@ -50,7 +52,7 @@
             width: 100%;
             height: 100%;
             background-image: linear-gradient(var(--border) 1px, transparent 1px),
-                              linear-gradient(90deg, var(--border) 1px, transparent 1px);
+                linear-gradient(90deg, var(--border) 1px, transparent 1px);
             background-size: 50px 50px;
             z-index: -1;
             opacity: 0.3;
@@ -173,10 +175,12 @@
         .btn-accent-glow {
             border-color: rgba(0, 255, 204, 0.3);
         }
+
         .btn-accent-glow:hover {
             border-color: var(--accent);
             box-shadow: 0 0 20px rgba(0, 255, 204, 0.15);
         }
+
         .btn-accent-glow:hover span.status {
             background: var(--accent);
             color: var(--bg);
@@ -184,7 +188,10 @@
         }
 
         @keyframes moduleLoad {
-            to { opacity: 1; transform: translateY(0); }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         footer {
@@ -219,25 +226,26 @@
             width: 100%;
             margin-bottom: 10px;
         }
+
         .term-title {
             font-size: 12px;
             letter-spacing: 1px;
             margin-bottom: 5px;
         }
+
         .loading-bar-container {
             border-top: 1px solid #ffffff;
             border-bottom: 1px solid #ffffff;
             padding: 1px 0;
         }
+
         .loading-bar {
             height: 8px;
-            background: repeating-linear-gradient(
-                90deg,
-                #ffffff,
-                #ffffff 8px,
-                transparent 8px,
-                transparent 16px
-            );
+            background: repeating-linear-gradient(90deg,
+                    #ffffff,
+                    #ffffff 8px,
+                    transparent 8px,
+                    transparent 16px);
             width: 0%;
             transition: width 0.05s linear;
         }
@@ -253,12 +261,13 @@
             padding: 15px;
             margin: 15px 0;
         }
+
         .log-line {
             margin-bottom: 3px;
             white-space: pre-wrap;
             word-break: break-all;
         }
-        
+
         /* 專門用來處理不換行的大型高密度 ASCII 容器 */
         .ascii-block {
             font-family: monospace;
@@ -273,25 +282,41 @@
         }
 
         /* 日誌狀態色調映射 */
-        .log-info { color: #ffffff; }
-        .log-warn { color: #ffcc00; }
-        .log-error { color: #ff5555; }
-        .log-success { color: #00ffcc; }
-        .log-input { color: #888888; }
+        .log-info {
+            color: #ffffff;
+        }
+
+        .log-warn {
+            color: #ffcc00;
+        }
+
+        .log-error {
+            color: #ff5555;
+        }
+
+        .log-success {
+            color: #00ffcc;
+        }
+
+        .log-input {
+            color: #888888;
+        }
 
         /* MGC 命令列輸入區（無多餘提示） */
         .cmd-line-wrapper {
-            display: none; 
+            display: none;
             align-items: center;
             font-size: 13px;
             border-top: 1px solid rgba(255, 255, 255, 0.2);
             padding-top: 10px;
         }
+
         .cmd-prompt {
             color: #ffffff;
             margin-right: 10px;
             font-weight: bold;
         }
+
         #cmd-input {
             background: transparent;
             border: none;
@@ -310,6 +335,7 @@
             color: var(--dim);
             margin-top: 5px;
         }
+
         .barcode {
             font-family: monospace;
             font-size: 8px;
@@ -318,15 +344,26 @@
             white-space: pre;
         }
 
-        .log-matrix-stream::-webkit-scrollbar { width: 5px; }
-        .log-matrix-stream::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); }
+        .log-matrix-stream::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .log-matrix-stream::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+        }
 
         @media (max-width: 768px) {
-            .ascii-block { font-size: 4px; }
-            #secret-terminal { padding: 10px; }
+            .ascii-block {
+                font-size: 4px;
+            }
+
+            #secret-terminal {
+                padding: 10px;
+            }
         }
     </style>
 </head>
+
 <body>
 
     <div class="grid-overlay"></div>
@@ -341,7 +378,8 @@
             <h2>主要核心程序 / PRIMARY DIRECTIVES</h2>
             <div class="game-menu">
                 <a href="3Dmaze.html" class="game-btn">闖關 3D 迷宮<span class="status">[ ONLINE ]</span></a>
-                <a href="DifferentColor.html" class="game-btn btn-accent-glow">核心色網挑戰<span class="status" style="color: var(--accent);">[ CORE_SYS ]</span></a>
+                <a href="DifferentColor.html" class="game-btn btn-accent-glow">核心色網挑戰<span class="status"
+                        style="color: var(--accent);">[ CORE_SYS ]</span></a>
             </div>
         </section>
 
@@ -350,10 +388,19 @@
             <div class="game-menu">
                 <a href="MazeLabs.html" class="game-btn">迷宮實驗室 (MazeLabs)<span class="status">[ TEST_BED ]</span></a>
                 <a href="DClabs.html" class="game-btn">色彩研究室 (DClabs)<span class="status">[ ANALYZING ]</span></a>
-                <a href="LittleMinesweeper.html" class="game-btn">微型踩地雷 (LittleMinesweeper)<span class="status">[ LOGIC_DET ]</span></a>
+                <a href="LittleMinesweeper.html" class="game-btn">微型踩地雷 (LittleMinesweeper)<span class="status">[
+                        LOGIC_DET ]</span></a>
             </div>
         </section>
-
+        <section class="protocol-box" style="animation-delay: 0.3s;">
+            <h2>經典版本 / ARCHIVE</h2>
+            <div class="game-menu">
+                <a href="old3Dmaze.html" class="game-btn">
+                    舊版 3D 迷宮
+                    <span class="status">[ LEGACY ]</span>
+                </a>
+            </div>
+        </section>
         <footer>HEV CENTRAL GAME MATRIX // HOST_VERSION 3.0</footer>
     </div>
 
@@ -414,7 +461,7 @@
         function executeMGCBootSequence() {
             terminalOpened = true;
             terminal.style.display = "flex";
-            
+
             const now = new Date();
             siteLaunchTimeStr = now.toTimeString().split(' ')[0];
 
@@ -489,8 +536,8 @@
         // 覆寫系統原生主控台，使其即時同步至 MGC 上
         const _originalLog = console.log;
         const _originalErr = console.log;
-        console.log = function(...args) { _originalLog.apply(console, args); if(terminalOpened) appendLog(`[CONSOLE.LOG] ${args.join(' ')}`, "info"); };
-        console.error = function(...args) { _originalErr.apply(console, args); if(terminalOpened) appendLog(`[CONSOLE.ERR] ${args.join(' ')}`, "error"); };
+        console.log = function (...args) { _originalLog.apply(console, args); if (terminalOpened) appendLog(`[CONSOLE.LOG] ${args.join(' ')}`, "info"); };
+        console.error = function (...args) { _originalErr.apply(console, args); if (terminalOpened) appendLog(`[CONSOLE.ERR] ${args.join(' ')}`, "error"); };
 
         // 定時更新流中的計時日誌行
         function updateMGCSystemTime() {
@@ -498,11 +545,11 @@
             const hrs = String(Math.floor(diff / 3600000)).padStart(2, '0');
             const mins = String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0');
             const secs = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
-            
+
             const lines = logStream.getElementsByClassName("log-info");
             let targetLine = null;
-            for(let i=0; i<lines.length; i++) {
-                if(lines[i].textContent.includes("ELAPSED_TIME")) {
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].textContent.includes("ELAPSED_TIME")) {
                     targetLine = lines[i];
                     break;
                 }
@@ -528,17 +575,17 @@
                 // 核心診斷跳轉
                 if (rawCmd === "67") {
                     window.location.href = "67/67.html";
-                } 
+                }
                 // 版本號核心驗證
                 else if (rawCmd === "!V lastUpdated") {
                     appendLog(`MGC CORE ENGINE VERSION: ${MGC_VERSION}`, "success");
                     appendLog(`LAST DISPATCH DEPLOYMENT: ${MGC_BUILD_DATE}`, "info");
-                } 
+                }
                 // 仿真 DevTools 核心指令
                 else if (rawCmd === "clear()" || rawCmd === "clear" || rawCmd === "cls") {
                     MGC.clear();
                     appendLog(`❖ ${siteLaunchTimeStr} [NOW ]Running Isvxs owned's game`, "success");
-                } 
+                }
                 else if (rawCmd === "location.reload()") {
                     window.location.reload();
                 }
@@ -559,4 +606,5 @@
         });
     </script>
 </body>
+
 </html>
