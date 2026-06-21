@@ -97,18 +97,6 @@
             animation: moduleLoad 1s var(--mechanic-ease) forwards;
         }
 
-        .protocol-box::before {
-            content: "SYSTEM_MODULE_ACTIVE";
-            position: absolute;
-            top: -10px;
-            right: 20px;
-            background: var(--bg);
-            padding: 0 10px;
-            font-size: 0.6rem;
-            color: var(--dim);
-            letter-spacing: 2px;
-        }
-
         h2 {
             font-size: 1.2rem;
             font-weight: 600;
@@ -203,7 +191,7 @@
             text-align: center;
         }
 
-        /* ==================== MGC (MINI GAMES' CONSOLE) DEV OS ==================== */
+        /* ==================== MGC DEV OS ==================== */
         #secret-terminal {
             display: none;
             position: fixed;
@@ -221,7 +209,6 @@
             justify-content: space-between;
         }
 
-        /* 頂部流水載入線 */
         .term-header {
             width: 100%;
             margin-bottom: 10px;
@@ -250,12 +237,11 @@
             transition: width 0.05s linear;
         }
 
-        /* 整合型矩陣日誌視窗（包含大型 ASCII 與事件輸出流） */
         .log-matrix-stream {
             flex-grow: 1;
             overflow-y: auto;
             font-size: 11px;
-            line-height: 1.3;
+            line-height: 1.4;
             border: 1px solid rgba(255, 255, 255, 0.1);
             background: rgba(255, 255, 255, 0.01);
             padding: 15px;
@@ -263,12 +249,11 @@
         }
 
         .log-line {
-            margin-bottom: 3px;
+            margin-bottom: 4px;
             white-space: pre-wrap;
             word-break: break-all;
         }
 
-        /* 專門用來處理不換行的大型高密度 ASCII 容器 */
         .ascii-block {
             font-family: monospace;
             white-space: pre;
@@ -281,30 +266,15 @@
             display: block;
         }
 
-        /* 日誌狀態色調映射 */
-        .log-info {
-            color: #ffffff;
-        }
+        .log-info { color: #ffffff; }
+        .log-warn { color: #ffaa00; background: rgba(255, 170, 0, 0.1); padding: 1px 4px; border-radius: 2px; }
+        .log-error { color: #ff4444; background: rgba(255, 68, 68, 0.1); padding: 1px 4px; border-radius: 2px; font-weight: bold; }
+        .log-success { color: #00ffcc; }
+        .log-input { color: #aaaaaa; }
 
-        .log-warn {
-            color: #ffcc00;
-        }
-
-        .log-error {
-            color: #ff5555;
-        }
-
-        .log-success {
-            color: #00ffcc;
-        }
-
-        .log-input {
-            color: #888888;
-        }
-
-        /* MGC 命令列輸入區（無多餘提示） */
         .cmd-line-wrapper {
             display: none;
+            position: relative;
             align-items: center;
             font-size: 13px;
             border-top: 1px solid rgba(255, 255, 255, 0.2);
@@ -317,6 +287,12 @@
             font-weight: bold;
         }
 
+        .input-container {
+            position: relative;
+            flex-grow: 1;
+            display: flex;
+        }
+
         #cmd-input {
             background: transparent;
             border: none;
@@ -324,7 +300,70 @@
             font-family: monospace;
             font-size: 13px;
             outline: none;
-            flex-grow: 1;
+            width: 100%;
+            z-index: 2;
+        }
+
+        #cmd-hint {
+            position: absolute;
+            left: 0;
+            top: 0;
+            color: rgba(255, 255, 255, 0.25);
+            font-family: monospace;
+            font-size: 13px;
+            z-index: 1;
+            pointer-events: none;
+            white-space: pre;
+        }
+
+        /* 智慧自動補全側邊框樣式 */
+        .autocomplete-panel {
+            display: none;
+            position: absolute;
+            bottom: 40px;
+            left: 20px;
+            width: 320px;
+            background: #111111;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 25px rgba(0,0,0,0.8);
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 100000;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .panel-section {
+            padding: 6px 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .panel-label {
+            font-size: 10px;
+            color: #00ffcc;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .suggestion-item {
+            padding: 4px 6px;
+            cursor: pointer;
+            color: #ffffff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .suggestion-item:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: #00ffcc;
+        }
+
+        .suggestion-item.best-match {
+            font-weight: bold;
+            color: #00ffcc;
+            background: rgba(0, 255, 204, 0.06);
         }
 
         .term-footer {
@@ -344,22 +383,18 @@
             white-space: pre;
         }
 
-        .log-matrix-stream::-webkit-scrollbar {
+        .log-matrix-stream::-webkit-scrollbar, .autocomplete-panel::-webkit-scrollbar {
             width: 5px;
         }
 
-        .log-matrix-stream::-webkit-scrollbar-thumb {
+        .log-matrix-stream::-webkit-scrollbar-thumb, .autocomplete-panel::-webkit-scrollbar-thumb {
             background: rgba(255, 255, 255, 0.2);
         }
 
         @media (max-width: 768px) {
-            .ascii-block {
-                font-size: 4px;
-            }
-
-            #secret-terminal {
-                padding: 10px;
-            }
+            .ascii-block { font-size: 4px; }
+            #secret-terminal { padding: 10px; }
+            .autocomplete-panel { width: calc(100% - 40px); left: 20px; }
         }
     </style>
 </head>
@@ -370,12 +405,12 @@
 
     <div class="container">
         <header>
-            <span class="sys-path">HEV // HOST_TERMINAL // MATRIX_SELECTION</span>
+            <span class="sys-path">HOST_TERMINAL // MATRIX_SELECTION</span>
             <h1>遊戲大廳</h1>
         </header>
 
         <section class="protocol-box">
-            <h2>主要核心程序 / PRIMARY DIRECTIVES</h2>
+            <h2>主要核心程序</h2>
             <div class="game-menu">
                 <a href="3Dmaze.html" class="game-btn">闖關 3D 迷宮<span class="status">[ ONLINE ]</span></a>
                 <a href="DifferentColor.html" class="game-btn btn-accent-glow">核心色網挑戰<span class="status"
@@ -384,7 +419,7 @@
         </section>
 
         <section class="protocol-box" style="animation-delay: 0.15s;">
-            <h2>實驗性分流協定 / SECTOR LABS</h2>
+            <h2>實驗性分流協定</h2>
             <div class="game-menu">
                 <a href="MazeLabs.html" class="game-btn">迷宮實驗室 (MazeLabs)<span class="status">[ TEST_BED ]</span></a>
                 <a href="DClabs.html" class="game-btn">色彩研究室 (DClabs)<span class="status">[ ANALYZING ]</span></a>
@@ -393,7 +428,7 @@
             </div>
         </section>
         <section class="protocol-box" style="animation-delay: 0.3s;">
-            <h2>經典版本 / ARCHIVE</h2>
+            <h2>經典版本</h2>
             <div class="game-menu">
                 <a href="old3Dmaze.html" class="game-btn">
                     舊版 3D 迷宮
@@ -401,12 +436,12 @@
                 </a>
             </div>
         </section>
-        <footer>HEV CENTRAL GAME MATRIX // HOST_VERSION 3.0</footer>
+        <footer>Isvxs Game Matrix</footer>
     </div>
 
     <div id="secret-terminal">
         <div class="term-header">
-            <div class="term-title" id="load-status-title">MGC_INITIALIZATION_PROTOCOL_PENDING...</div>
+            <div class="term-title" id="load-status-title">INITIALIZATION_PROTOCOL_PENDING...</div>
             <div class="loading-bar-container">
                 <div class="loading-bar" id="progress-bar-fill"></div>
             </div>
@@ -414,21 +449,44 @@
 
         <div class="log-matrix-stream" id="log-stream-anchor"></div>
 
+        <div class="autocomplete-panel" id="suggestion-panel">
+            <div class="panel-section">
+                <div class="panel-label">最接近的提示</div>
+                <div id="best-match-box"></div>
+            </div>
+            <div class="panel-section">
+                <div class="panel-label">候補可用指令</div>
+                <div id="other-matches-box"></div>
+            </div>
+        </div>
+
         <div class="cmd-line-wrapper" id="cmd-wrapper">
             <span class="cmd-prompt">></span>
-            <input type="text" id="cmd-input" autocomplete="off" spellcheck="false">
+            <div class="input-container">
+                <input type="text" id="cmd-input" autocomplete="off" spellcheck="false">
+                <div id="cmd-hint"></div>
+            </div>
         </div>
 
         <div class="term-footer">
-            <div>MGC // SYS_ENGINE_ACTIVE</div>
+            <div>MGC // DEV_LOG_ACTIVE</div>
             <div class="barcode">||||| | |||| ||| |||| | ||<br>||||| | |||| ||| |||| | ||</div>
         </div>
     </div>
 
     <script>
-        // MGC 系統設定參數
         const MGC_VERSION = "v4.12.0-SENTRY.IV";
-        const MGC_BUILD_DATE = "2026-06-18 20:37:53"; // 當前最新部署時間戳
+        const MGC_BUILD_DATE = "2026-06-18 20:37:53";
+
+        // 全量高模擬 DevTools 可用指令與物件字典群
+        const COMMAND_DICTIONARY = [
+            "alert", "alert()", "atop", "alerp", "clear", "clear()", "cls", "console",
+            "console.log", "console.warn", "console.error", "console.clear()", "console.table",
+            "DevWeb", "document", "document.getElementById", "document.querySelector", 
+            "document.body", "document.location", "fetch", "fetch()", "location", "location.reload()", 
+            "localStorage", "navigator", "navigator.userAgent", "sessionStorage", 
+            "window", "window.location", "window.reload()", "67"
+        ];
 
         let keyBuffer = "";
         const terminal = document.getElementById("secret-terminal");
@@ -437,60 +495,89 @@
         const logStream = document.getElementById("log-stream-anchor");
         const cmdWrapper = document.getElementById("cmd-wrapper");
         const cmdInput = document.getElementById("cmd-input");
+        const cmdHint = document.getElementById("cmd-hint");
+        
+        // 側邊面板結構元素
+        const suggestionPanel = document.getElementById("suggestion-panel");
+        const bestMatchBox = document.getElementById("best-match-box");
+        const otherMatchesBox = document.getElementById("other-matches-box");
 
         let terminalOpened = false;
-        let startTime = 0;
-        let elapsedInterval = null;
+        let everBooted = false; // 用於記憶體狀態：是否曾引導初始化過
         let siteLaunchTimeStr = "";
+        let currentSuggestion = "";
 
-        // 監聽 777 啟動序列
+        // 監聽 777 切換機制 (I/O 開關轉換)
         window.addEventListener("keydown", (e) => {
-            if (terminalOpened) return;
             if (e.key === "7" || e.code === "Numpad7") {
                 keyBuffer += "7";
                 if (keyBuffer.includes("777")) {
                     keyBuffer = "";
-                    executeMGCBootSequence();
+                    if (!terminalOpened) {
+                        executeMGCBootSequence();
+                    } else {
+                        closeMGCConsole();
+                    }
                 }
             } else {
-                keyBuffer = "";
+                if (e.key !== "Process" && e.key !== "Unidentified") {
+                    keyBuffer = "";
+                }
             }
         });
 
-        // 執行 MGC 初始化引導
         function executeMGCBootSequence() {
             terminalOpened = true;
             terminal.style.display = "flex";
 
-            const now = new Date();
-            siteLaunchTimeStr = now.toTimeString().split(' ')[0];
+            if (!everBooted) {
+                // 首次開啟：跑條並注入 ASCII 與免責聲明
+                const now = new Date();
+                siteLaunchTimeStr = now.toTimeString().split(' ')[0];
+                let currentProgress = 0;
+                loadTitle.textContent = "ALLOCATING CORE MEMORY MATRIX...";
 
-            let currentProgress = 0;
-            loadTitle.textContent = "ALLOCATING MGC CORE MEMORY MATRIX...";
-
-            // 機械步進
-            const progressInterval = setInterval(() => {
-                currentProgress += Math.floor(Math.random() * 15) + 5;
-                if (currentProgress >= 100) {
-                    progressBar.style.width = "100%";
-                    clearInterval(progressInterval);
-                    setTimeout(unlockMGCConsole, 250);
-                } else {
-                    progressBar.style.width = currentProgress + "%";
-                }
-            }, 60);
+                const progressInterval = setInterval(() => {
+                    currentProgress += Math.floor(Math.random() * 15) + 5;
+                    if (currentProgress >= 100) {
+                        progressBar.style.width = "100%";
+                        clearInterval(progressInterval);
+                        setTimeout(() => {
+                            unlockMGCConsole(false);
+                        }, 200);
+                    } else {
+                        progressBar.style.width = currentProgress + "%";
+                    }
+                }, 40);
+            } else {
+                // 重複開啟：不顯示動畫與重複訊息，直接解鎖環境
+                unlockMGCConsole(true);
+            }
         }
 
-        // 核心解鎖、並將超大型 ASCII 當作日誌起始數據流入日誌流中
-        function unlockMGCConsole() {
-            loadTitle.textContent = "MGC INTERFACE KERNEL UNLOCKED.";
+        function closeMGCConsole() {
+            terminalOpened = false;
+            terminal.style.display = "none";
+            progressBar.style.width = "0%";
+            cmdInput.value = "";
+            cmdHint.textContent = "";
+            suggestionPanel.style.display = "none";
+        }
+
+        const SECURITY_NOTICE = 
+`%cIsvxs scripts have full control over all script modifications. Forking is prohibited.
+%c**IF YOU DONT KNOW WHAT YOU DOING, DO NOT POST ANY COMMANDS OR CONTEXTS HERE!**`;
+
+        function unlockMGCConsole(skipWelcomeMessages) {
+            loadTitle.textContent = "INTERFACE KERNEL UNLOCKED.";
             cmdWrapper.style.display = "flex";
             cmdInput.focus();
 
-            // 1. 注入自定義超大型 ASCII 藝術字到日誌流中
-            const asciiContainer = document.createElement("pre");
-            asciiContainer.className = "ascii-block";
-            asciiContainer.textContent = `                                                                                                                 
+            if (!skipWelcomeMessages) {
+                // 1. 注入高密度 ASCII ART
+                const asciiContainer = document.createElement("pre");
+                asciiContainer.className = "ascii-block";
+                asciiContainer.textContent = `                                                                                                                 
  ▄▄▄  ▄▄▄                  ▄▄                      ▄▄                             ▄▄▄▄▄▄                                          
  ███  ███                  ██                      ██                             ▀▀██▀▀                                          
  ████████   ▄█████▄   ▄███▄██   ▄████▄             ██▄███▄   ▀██  ███               ██     ▄▄█████▄  ██▄  ▄██  ▀██  ██▀  ▄▄█████▄ 
@@ -499,22 +586,26 @@
  ██    ██  ██▄▄▄███  ▀██▄▄███  ▀██▄▄▄▄█            ███▄▄██▀     ███               ▄▄██▄▄   █▄▄▄▄▄██    ████     ▄█▀▀█▄   █▄▄▄▄▄██ 
  ▀▀    ▀▀   ▀▀▀▀ ▀▀    ▀▀▀ ▀▀    ▀▀▀▀▀             ▀▀ ▀▀▀       ██                ▀▀▀▀▀▀    ▀▀▀▀▀▀      ▀▀     ▀▀▀  ▀▀▀   ▀▀▀▀▀▀  
                                                               ███              `;
-            logStream.appendChild(asciiContainer);
+                logStream.appendChild(asciiContainer);
 
-            // 2. 注入狀態與定時日誌
-            startTime = Date.now();
-            appendLog(`❖ ${siteLaunchTimeStr} [NOW ]Running Isvxs owned's game`, "success");
-            appendLog(`[ SYSTEM ] (00:00:00) ELAPSED_TIME`, "info");
+                // 同步至原生的 DevTools 控制台並寫入免責
+                console.log(SECURITY_NOTICE, "color: #00ffcc; font-weight: bold; font-size: 13px;", "color: #ff4444; font-weight: bold; font-size: 13px;");
+                appendLog("Isvxs scripts have full control over all script modifications. Forking is prohibited.", "success");
+                appendLog("**IF YOU DONT KNOW WHAT YOU DOING, DO NOT POST ANY COMMANDS OR CONTEXTS HERE!**", "error");
+                appendLog(`❖ ${siteLaunchTimeStr} [NOW] Running Isvxs owned's game`, "success");
+                
+                everBooted = true;
+            }
 
-            // 啟動動態時間刷新
-            elapsedInterval = setInterval(updateMGCSystemTime, 1000);
-
-            // 全域點擊防丟失焦點
-            terminal.addEventListener("click", () => cmdInput.focus());
+            terminal.addEventListener("click", (e) => {
+                // 點選提示面版時不搶走輸入焦點
+                if(!e.target.closest('.autocomplete-panel')) {
+                    cmdInput.focus();
+                }
+            });
             logStream.scrollTop = logStream.scrollHeight;
         }
 
-        // 附加一般日誌（MGC 當作 API 對接）
         function appendLog(text, type = "info") {
             const line = document.createElement("div");
             line.className = `log-line log-${type}`;
@@ -524,75 +615,125 @@
             return line;
         }
 
-        // 綁定/代理真實 DevTools Console API
         const MGC = {
             log: (msg) => appendLog(`[LOG] ${msg}`, "info"),
-            error: (msg) => appendLog(`[ERR] ${msg}`, "error"),
             warn: (msg) => appendLog(`[WARN] ${msg}`, "warn"),
-            clear: () => {
-                logStream.innerHTML = "";
-            }
+            error: (msg) => appendLog(`[ERR] ${msg}`, "error"),
+            clear: () => { logStream.innerHTML = ""; }
         };
-        // 覆寫系統原生主控台，使其即時同步至 MGC 上
+
         const _originalLog = console.log;
-        const _originalErr = console.log;
-        console.log = function (...args) { _originalLog.apply(console, args); if (terminalOpened) appendLog(`[CONSOLE.LOG] ${args.join(' ')}`, "info"); };
-        console.error = function (...args) { _originalErr.apply(console, args); if (terminalOpened) appendLog(`[CONSOLE.ERR] ${args.join(' ')}`, "error"); };
+        const _originalWarn = console.warn;
+        const _originalErr = console.error;
 
-        // 定時更新流中的計時日誌行
-        function updateMGCSystemTime() {
-            const diff = Date.now() - startTime;
-            const hrs = String(Math.floor(diff / 3600000)).padStart(2, '0');
-            const mins = String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0');
-            const secs = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
+        console.log = function (...args) { 
+            _originalLog.apply(console, args); 
+            if (terminalOpened) appendLog(`[CONSOLE.LOG] ${args.join(' ')}`, "info"); 
+        };
+        console.warn = function (...args) { 
+            _originalWarn.apply(console, args); 
+            if (terminalOpened) appendLog(`[CONSOLE.WARN] ${args.join(' ')}`, "warn"); 
+        };
+        console.error = function (...args) { 
+            _originalErr.apply(console, args); 
+            if (terminalOpened) appendLog(`[CONSOLE.ERR] ${args.join(' ')}`, "error"); 
+        };
 
-            const lines = logStream.getElementsByClassName("log-info");
-            let targetLine = null;
-            for (let i = 0; i < lines.length; i++) {
-                if (lines[i].textContent.includes("ELAPSED_TIME")) {
-                    targetLine = lines[i];
-                    break;
+        // 即時追蹤與繪製智慧提示側邊視窗
+        cmdInput.addEventListener("input", () => {
+            const val = cmdInput.value;
+            currentSuggestion = "";
+            bestMatchBox.innerHTML = "";
+            otherMatchesBox.innerHTML = "";
+
+            if (val.trim() === "") {
+                cmdHint.textContent = "";
+                suggestionPanel.style.display = "none";
+                return;
+            }
+
+            // 過濾匹配項目
+            const matchedCommands = COMMAND_DICTIONARY.filter(cmd => 
+                cmd.toLowerCase().startsWith(val.toLowerCase())
+            );
+
+            if (matchedCommands.length > 0) {
+                suggestionPanel.style.display = "block";
+                
+                // 1. 理處第一接近最優匹配 (Best Match)
+                currentSuggestion = matchedCommands[0];
+                cmdHint.textContent = val + currentSuggestion.slice(val.length);
+
+                const bestElem = document.createElement("div");
+                bestElem.className = "suggestion-item best-match";
+                bestElem.textContent = currentSuggestion;
+                bestElem.addEventListener("click", () => fillAndFocus(currentSuggestion));
+                bestMatchBox.appendChild(bestElem);
+
+                // 2. 處理第二接近及後續候補
+                const secondaryMatches = matchedCommands.slice(1);
+                if(secondaryMatches.length > 0) {
+                    secondaryMatches.forEach(cmd => {
+                        const item = document.createElement("div");
+                        item.className = "suggestion-item";
+                        item.textContent = cmd;
+                        item.addEventListener("click", () => fillAndFocus(cmd));
+                        otherMatchesBox.appendChild(item);
+                    });
+                } else {
+                    otherMatchesBox.innerHTML = `<div style="padding:4px 6px; color:rgba(255,255,255,0.2)">無其他符合候補</div>`;
                 }
-            }
-            const timeString = `[ SYSTEM ] (${hrs}:${mins}:${secs}) ELAPSED_TIME`;
-            if (targetLine) {
-                targetLine.textContent = timeString;
             } else {
-                appendLog(timeString, "info");
+                cmdHint.textContent = "";
+                suggestionPanel.style.display = "none";
             }
+        });
+
+        // 點擊側邊窗元素時自動填入並聚焦
+        function fillAndFocus(word) {
+            cmdInput.value = word;
+            cmdHint.textContent = "";
+            suggestionPanel.style.display = "none";
+            cmdInput.focus();
         }
 
-        // --- MGC 命令行代碼解析（全英文、與 Devtools 同步） ---
+        // 鍵盤操控補全
         cmdInput.addEventListener("keydown", (e) => {
+            if (e.key === "Tab") {
+                e.preventDefault();
+                if (currentSuggestion) {
+                    fillAndFocus(currentSuggestion);
+                }
+            }
+
             if (e.key === "Enter") {
                 const rawCmd = cmdInput.value.trim();
                 if (rawCmd === "") return;
 
-                // 回顯輸入歷史
                 appendLog(`> ${rawCmd}`, "input");
                 cmdInput.value = "";
+                cmdHint.textContent = "";
+                suggestionPanel.style.display = "none";
 
-                // 核心診斷跳轉
                 if (rawCmd === "67") {
                     window.location.href = "67/67.html";
                 }
-                // 版本號核心驗證
+                else if (rawCmd === "DevWeb") {
+                    window.location.href = "devWeb.html";
+                }
                 else if (rawCmd === "!V lastUpdated") {
                     appendLog(`MGC CORE ENGINE VERSION: ${MGC_VERSION}`, "success");
                     appendLog(`LAST DISPATCH DEPLOYMENT: ${MGC_BUILD_DATE}`, "info");
                 }
-                // 仿真 DevTools 核心指令
                 else if (rawCmd === "clear()" || rawCmd === "clear" || rawCmd === "cls") {
                     MGC.clear();
-                    appendLog(`❖ ${siteLaunchTimeStr} [NOW ]Running Isvxs owned's game`, "success");
+                    appendLog(`❖ ${siteLaunchTimeStr} [NOW] Running Isvxs owned's game`, "success");
                 }
                 else if (rawCmd === "location.reload()") {
                     window.location.reload();
                 }
-                // 容錯及解析自定義 JavaScript (高仿真 Devtools Console 執行環境)
                 else {
                     try {
-                        // 嘗試在沙盒內執行
                         let evalResult = window.eval(rawCmd);
                         if (evalResult !== undefined) {
                             appendLog(`< ${evalResult}`, "success");
