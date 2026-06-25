@@ -31,35 +31,23 @@
             width: 100vw;
             height: 100vh;
         }
-        #dialogue-overlay {
-            display: none;
+        #stamina-container {
             position: absolute;
-            bottom: 15%;
+            top: 20px;
             left: 50%;
             transform: translateX(-50%);
-            width: 60%;
-            background: rgba(10, 10, 10, 0.9);
-            border: 3px solid #444;
-            padding: 25px;
-            color: #d8d8d8;
-            font-size: 24px;
-            letter-spacing: 2px;
-            text-align: center;
-            box-shadow: 0 0 30px rgba(0,0,0,0.8);
-            pointer-events: none;
-            z-index: 999;
+            width: 300px;
+            height: 12px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            z-index: 500;
         }
-        #dialogue-hint {
-            font-size: 14px;
-            color: #666;
-            margin-top: 10px;
-        }
-        #curse-screen {
-            display: none;
-            position: absolute;
-            top: 0; left: 0; width: 100vw; height: 100vh;
-            background-color: #000;
-            z-index: 99999;
+        #stamina-bar {
+            width: 100%;
+            height: 100%;
+            background: #ffffff;
+            transition: width 0.05s linear;
         }
         #dev-panel {
             display: none;
@@ -125,11 +113,9 @@
 <body>
 
     <canvas id="canvas" width="1920" height="1080"></canvas>
-    <div id="curse-screen"></div>
     
-    <div id="dialogue-overlay">
-        <div id="dialogue-text"></div>
-        <div id="dialogue-hint"></div>
+    <div id="stamina-container">
+        <div id="stamina-bar"></div>
     </div>
 
     <div id="dev-panel">
@@ -193,39 +179,9 @@
     </div>
 
 <script>
-if (localStorage.getItem('the_dust_curse') === 'true') {
-    const curseOverlay = document.getElementById('curse-screen');
-    curseOverlay.style.display = 'block';
-    
-    let starClicks = 0;
-    const handleCurseKey = (e) => {
-        if (e.key === '*' || e.code === 'NumpadMultiply') {
-            starClicks++;
-            if (starClicks >= 5) {
-                clearTimeout(curseTimeout);
-                window.removeEventListener('keydown', handleCurseKey);
-                localStorage.removeItem('the_dust_curse');
-                curseOverlay.style.display = 'none';
-                roomCount = 1;
-                generateDenseMaze();
-                startLoop();
-            }
-        }
-    };
-    window.addEventListener('keydown', handleCurseKey);
-
-    const curseTimeout = setTimeout(() => {
-        window.close();
-        setTimeout(() => {
-            window.location.href = "about:blank";
-        }, 50);
-    }, 1000);
-}
-
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
-const diagOverlay = document.getElementById('dialogue-overlay');
-const diagText = document.getElementById('dialogue-text');
+const staminaBar = document.getElementById('stamina-bar');
 
 const MAP_SIZE = 31; 
 let map = [];
@@ -236,31 +192,22 @@ const GAME_VERSION = "v.1.2.0";
 const randomSlogans = ["加油...", "有意義嗎？", "沒意義的...", "出口在哪？", "永無止境", "回頭吧", "這是現實嗎？"];
 let eyeProtectionMode = false;
 
-let npcActive = false;
-let npcX = 0, npcY = 0;
-let npcDialogueStep = -1;
-let npcTriggeredInThisRoom = false; 
-let showRedSmile = false; 
-let isTyping = false;
-let typingTimeout = null;
-let autoNextTimeout = null;
-
-const npcTexts = [
-    "你好...",
-    "我從未意識到有人能察覺到我..",
-    "你，真獨特，有耐心在這裡繞圈子.",
-    "但，你意識到我的存在了.",
-    "再見。"
-];
-
 let smileyActive = false;
 let smileyX = 0, smileyY = 0;
-let smileySpeed = 0.008; 
 let smileyInVision = false; 
 
-let lastMoveTime = performance.now();
-let screenFogIntensity = 0;
-let wasteSpeechTriggered = false;
+let playerStamina = 100;
+const MAX_STAMINA = 100;
+let isStaminaDrained = false; 
+
+let runnerActive = false;
+let runnerX = 0;
+let runnerY = 0;
+let runnerState = "IDLE"; 
+let runnerWanderAngle = 0;
+let runnerWanderTimer = 0;
+let runTimer = 0;        
+let stopRunTimer = 0;    
 
 let startTime = performance.now();
 let totalFrameCount = 0;
@@ -288,6 +235,41 @@ let isJumping = false;
 let jumpTime = 0;
 let zOffset = 0; 
 let pitchAngle = 0; 
+
+let lastPlayerMoving = false;
+let lastPlayerAngle = 0;
+
+function isTileObstacle(x, y) {
+    if (x < 0 || x >= MAP_SIZE || y < 0 || y >= MAP_SIZE) return true;
+    let grid = map[Math.floor(y)][Math.floor(x)];
+    return (grid !== 0 && grid !== 2 && grid !== 5);
+}
+
+// 修正後的精準視線檢測 (Bresenham 演算法)
+function checkLineOfSight(x1, y1, x2, y2) {
+    let dx = Math.abs(x2 - x1);
+    let dy = Math.abs(y2 - y1);
+    let x = Math.floor(x1);
+    let y = Math.floor(y1);
+    let n = 1 + dx + dy;
+    let x_inc = (x2 > x1) ? 1 : -1;
+    let y_inc = (y2 > y1) ? 1 : -1;
+    let error = dx - dy;
+    dx *= 2;
+    dy *= 2;
+
+    for (; n > 0; --n) {
+        if (isTileObstacle(x, y)) return false;
+        if (error > 0) {
+            x += x_inc;
+            error -= dy;
+        } else {
+            y += y_inc;
+            error += dx;
+        }
+    }
+    return true;
+}
 
 function generateDenseMaze() {
     map = Array(MAP_SIZE).fill(null).map(() => Array(MAP_SIZE).fill(1));
@@ -453,27 +435,40 @@ function generateDenseMaze() {
             }
         }
     }
-    
-    npcTriggeredInThisRoom = false;
-    showRedSmile = false;
-    if (roomCount >= 10) {
-        npcActive = true;
-        npcDialogueStep = -1;
-        npcX = posX - Math.cos(angle) * 0.8;
-        npcY = posY - Math.sin(angle) * 0.8;
-        lastMoveTime = performance.now();
-        screenFogIntensity = 0;
-        wasteSpeechTriggered = false;
-    } else {
-        npcActive = false;
-    }
 
-    if (roomCount >= 15) {
+    if (roomCount >= 5) {
         smileyActive = true;
         smileyX = MAP_SIZE - 2.5;
         smileyY = MAP_SIZE - 2.5;
     } else {
         smileyActive = false;
+    }
+
+    if (roomCount >= 5) {
+        runnerActive = true;
+        let validSpots = [];
+        for (let y = 1; y < MAP_SIZE - 1; y++) {
+            for (let x = 1; x < MAP_SIZE - 1; x++) {
+                if (map[y][x] === 0 && (Math.abs(x - 1.5) > 3 || Math.abs(y - 1.5) > 3)) {
+                    validSpots.push({x: x + 0.5, y: y + 0.5});
+                }
+            }
+        }
+        if (validSpots.length > 0) {
+            let spot = validSpots[Math.floor(Math.random() * validSpots.length)];
+            runnerX = spot.x;
+            runnerY = spot.y;
+        } else {
+            runnerX = MAP_SIZE - 4.5;
+            runnerY = 2.5;
+        }
+        runnerState = "IDLE";
+        runnerWanderAngle = Math.random() * Math.PI * 2;
+        runnerWanderTimer = 0;
+        runTimer = 0;
+        stopRunTimer = 0;
+    } else {
+        runnerActive = false;
     }
 
     updateInfoTexture();
@@ -493,11 +488,11 @@ function toggleDevPanel() {
 }
 
 window.addEventListener('keydown', (e) => {
-    if (['w', 'W', 'ArrowUp'].includes(e.key)) { controls.forward = true; resetIdleTimer(); }
-    if (['s', 'S', 'ArrowDown'].includes(e.key)) { controls.backward = true; resetIdleTimer(); }
-    if (['a', 'A', 'ArrowLeft'].includes(e.key)) { controls.left = true; resetIdleTimer(); }   
-    if (['d', 'D', 'ArrowRight'].includes(e.key)) { controls.right = true; resetIdleTimer(); } 
-    if (e.key === 'Shift') { controls.shift = true; resetIdleTimer(); }
+    if (['w', 'W', 'ArrowUp'].includes(e.key)) { controls.forward = true; }
+    if (['s', 'S', 'ArrowDown'].includes(e.key)) { controls.backward = true; }
+    if (['a', 'A', 'ArrowLeft'].includes(e.key)) { controls.left = true; }   
+    if (['d', 'D', 'ArrowRight'].includes(e.key)) { controls.right = true; } 
+    if (e.key === 'Shift') { controls.shift = true; }
     if (e.key === 'p' || e.key === 'P') eyeProtectionMode = !eyeProtectionMode;
     
     if (e.key === ' ' && cfg.jumpable) {
@@ -510,7 +505,7 @@ window.addEventListener('keydown', (e) => {
     }
 
     if (e.key === '.' || e.code === 'NumpadDecimal') {
-        if (!isTransitioning && npcDialogueStep === -1 && !wasteSpeechTriggered) {
+        if (!isTransitioning) {
             startPortalTransition(false); 
         }
     }
@@ -584,15 +579,8 @@ window.addEventListener('keyup', (e) => {
 function resize() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-    // 如果有攝影機矩陣或投影更新邏輯，在此添加
 }
 
-function resetIdleTimer() {
-    lastMoveTime = performance.now();
-    screenFogIntensity = 0;
-}
-
-// 修正後的事件監聽與初始化
 window.addEventListener('resize', resize);
 
 const controls = {
@@ -610,91 +598,26 @@ function updateDirection() {
     planeY = dirX * (cfg.fov / 90);
 }
 
-// 確保在初始化時呼叫
 resize();
 updateDirection();
 canvas.addEventListener('click', (e) => {
-    if (document.pointerLockElement !== canvas && npcDialogueStep === -1 && !wasteSpeechTriggered) {
+    if (document.pointerLockElement !== canvas) {
         canvas.requestPointerLock();
         return;
-    }
-    
-    if (npcActive && npcDialogueStep >= 0 && !isTyping && !wasteSpeechTriggered) {
-        advanceDialogue();
-    } 
-    else if (npcActive && npcDialogueStep === -1 && !wasteSpeechTriggered && !npcTriggeredInThisRoom) {
-        let toNpcX = npcX - posX;
-        let toNpcY = npcY - posY;
-        let dist = Math.sqrt(toNpcX*toNpcX + toNpcY*toNpcY);
-        
-        let angleToNpc = Math.atan2(toNpcY, toNpcX);
-        let angleDiff = angleToNpc - angle;
-        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-        
-        let playerIsBehindNpc = Math.abs(angleDiff) > (Math.PI / 2); 
-        let triggerDistance = playerIsBehindNpc ? 2.2 : 1.5; 
-        let triggerAngle = playerIsBehindNpc ? 1.2 : 0.6;    
-
-        if (dist < triggerDistance && (playerIsBehindNpc || Math.abs(angleDiff) < triggerAngle)) {
-            npcTriggeredInThisRoom = true; 
-            document.exitPointerLock(); 
-            angle = Math.atan2(npcY - posY, npcX - posX);
-            pitchAngle = 0; 
-            updateDirection();
-            startNpcDialogueSequence();
-        }
     }
 });
 
 document.addEventListener('mousemove', (e) => {
-    if (e.movementX !== 0 || e.movementY !== 0) {
-        resetIdleTimer();
-    }
-    if (document.pointerLockElement === canvas && !isTransitioning && npcDialogueStep === -1) {
+    if (document.pointerLockElement === canvas && !isTransitioning) {
         let mouseSpeed = 0.0022; 
         angle += e.movementX * mouseSpeed;
-        
         if (cfg.pitchEnabled) {
             pitchAngle -= e.movementY * mouseSpeed * 400; 
             pitchAngle = Math.max(-400, Math.min(400, pitchAngle));
         }
-        
         updateDirection();
     }
 });
-
-function startNpcDialogueSequence() {
-    npcDialogueStep = 0;
-    diagOverlay.style.display = 'block';
-    typeText(npcTexts[0], () => {
-        autoNextTimeout = setTimeout(advanceDialogue, 2000);
-    });
-}
-
-function advanceDialogue() {
-    if (wasteSpeechTriggered) return;
-    npcDialogueStep++;
-    if (npcDialogueStep < npcTexts.length) {
-        if (npcDialogueStep === npcTexts.length - 1) {
-            showRedSmile = true; 
-        }
-        typeText(npcTexts[npcDialogueStep], () => {
-            autoNextTimeout = setTimeout(advanceDialogue, 2500); 
-        });
-    } else {
-        triggerCurseEnd();
-    }
-}
-
-function triggerCurseEnd() {
-    diagOverlay.style.display = 'none';
-    localStorage.setItem('the_dust_curse', 'true');
-    window.close();
-    setTimeout(() => {
-        window.location.href = "about:blank";
-    }, 50);
-}
 
 function triggerSmileyJumpscare() {
     document.exitPointerLock();
@@ -705,30 +628,6 @@ function triggerSmileyJumpscare() {
             window.location.href = "about:blank";
         }, 50);
     }, 1200); 
-}
-
-function typeText(fullText, callback) {
-    isTyping = true;
-    diagText.innerText = "";
-    let index = 0;
-    
-    function nextChar() {
-        if (index < fullText.length) {
-            let char = fullText[index];
-            diagText.innerText += char;
-            index++;
-            
-            let delay = 60;
-            if (char === ',' || char === '，') delay = 400;
-            else if (char === '.') delay = 600;
-            
-            typingTimeout = setTimeout(nextChar, delay);
-        } else {
-            isTyping = false;
-            if (callback) callback();
-        }
-    }
-    nextChar();
 }
 
 const texSize = 256; 
@@ -828,9 +727,7 @@ function createStaticTextures() {
     textures[5] = pCtx.getImageData(0, 0, texSize, texSize);
 
     const cCanvas = document.createElement('canvas'); cCanvas.width = texSize; cCanvas.height = texSize;
-    const cCtx = cCanvas.createElement ? cCanvas : document.createElement('canvas'); 
-    cCtx.width = texSize; cCtx.height = texSize;
-    const cCtx2D = cCtx.getContext('2d');
+    const cCtx2D = cCanvas.getContext('2d');
     cCtx2D.fillStyle = '#EAE6DF'; cCtx2D.fillRect(0, 0, texSize, texSize);
     cCtx2D.fillStyle = '#C4C0B9';
     for(let i=0; i<texSize; i+=32) cCtx2D.fillRect(0, i, texSize, 2);
@@ -858,20 +755,18 @@ function startPortalTransition(incrementRoom = true) {
         transitionAlpha += 0.1;
         if (transitionAlpha >= 1.0) {
             clearInterval(interval);
-            
             if (incrementRoom) {
                 roomCount++;
                 totalPortalCount++;
             }
-            
             generateDenseMaze();
-            
             posX = 1.5;
             posY = 1.5;
             angle = 0;
             pitchAngle = 0;
+            playerStamina = MAX_STAMINA; 
+            isStaminaDrained = false;
             updateDirection();
-            
             if(devModeActive) { syncInputsToConfig(); }
             
             const reverseInterval = setInterval(() => {
@@ -886,10 +781,24 @@ function startPortalTransition(incrementRoom = true) {
     }, 100); 
 }
 
+function getSmileySpeed() {
+    let base = 0.008;
+    if (roomCount > 20) {
+        return base * 1.60;
+    } else if (roomCount > 13) {
+        return base * 1.35;
+    } else if (roomCount > 7) {
+        return base * 1.10;
+    }
+    return base;
+}
+
 function update(timeScale) {
     if (isTransitioning || document.body.classList.contains('inverted-end')) return;
 
     let currentTime = performance.now();
+    let deltaTimeMs = (currentTime - lastTime);
+    if(deltaTimeMs > 100) deltaTimeMs = 16.66;
     
     if (devModeActive) {
         let elapsed = (currentTime - startTime) / 1000;
@@ -900,32 +809,6 @@ function update(timeScale) {
         document.getElementById('stat-portals').innerText = totalPortalCount;
     }
 
-    if (npcActive && npcDialogueStep === -1 && !wasteSpeechTriggered) {
-        if (currentTime - lastMoveTime > 5000) {
-            screenFogIntensity = Math.min(1.0, screenFogIntensity + 0.0033 * timeScale);
-            if (screenFogIntensity >= 1.0) {
-                wasteSpeechTriggered = true;
-                document.exitPointerLock();
-                diagOverlay.style.display = 'block';
-                typeText("此處不容那資源浪費者.", () => {
-                    setTimeout(triggerCurseEnd, 2500);
-                });
-            }
-        } else {
-            screenFogIntensity = Math.max(0, screenFogIntensity - 0.01 * timeScale);
-        }
-    }
-
-    if (npcDialogueStep !== -1) {
-        angle = Math.atan2(npcY - posY, npcX - posX);
-        pitchAngle = 0;
-        updateDirection();
-        return; 
-    }
-    
-    if (wasteSpeechTriggered) return;
-
-    // 處理飛行或普通跳躍物理
     if (cfg.fly) {
         if (controls.shift) {
             zOffset = Math.min(600, zOffset + 6 * timeScale);
@@ -943,7 +826,29 @@ function update(timeScale) {
         zOffset = 0;
     }
 
-    let baseSpeed = (controls.shift && !cfg.fly) ? cfg.runSpeed : cfg.walkSpeed;
+    let isMoving = controls.forward || controls.backward || controls.left || controls.right;
+    let isAttemptingRun = controls.shift && isMoving && !cfg.fly;
+
+    if (isStaminaDrained) {
+        if (playerStamina >= MAX_STAMINA) {
+            isStaminaDrained = false; 
+        }
+    }
+
+    let currentlyRunning = false;
+    if (isAttemptingRun && !isStaminaDrained) {
+        currentlyRunning = true;
+        playerStamina = Math.max(0, playerStamina - 0.35 * timeScale); 
+        if (playerStamina <= 0) {
+            isStaminaDrained = true; 
+        }
+    } else {
+        playerStamina = Math.min(MAX_STAMINA, playerStamina + 0.22 * timeScale); 
+    }
+
+    staminaBar.style.width = `${(playerStamina / MAX_STAMINA) * 100}%`;
+
+    let baseSpeed = currentlyRunning ? cfg.runSpeed : cfg.walkSpeed;
     let speed = baseSpeed * timeScale;
     let moveX = 0;
     let moveY = 0;
@@ -981,12 +886,14 @@ function update(timeScale) {
         }
     }
 
-    if (npcActive && npcDialogueStep === -1) {
-        let targetNpcX = posX - dirX * 0.7;
-        let targetNpcY = posY - dirY * 0.7;
-        npcX += (targetNpcX - npcX) * 0.15 * timeScale;
-        npcY += (targetNpcY - npcY) * 0.15 * timeScale;
+    let directionChangedDuringRun = false;
+    if (currentlyRunning && lastPlayerMoving) {
+        if (Math.abs(angle - lastPlayerAngle) > 0.001) {
+            directionChangedDuringRun = true;
+        }
     }
+    lastPlayerMoving = isMoving;
+    lastPlayerAngle = angle;
 
     if (smileyActive) {
         let sToPlayerX = posX - smileyX;
@@ -1010,8 +917,78 @@ function update(timeScale) {
         }
 
         if (!smileyInVision) {
-            smileyX += (sToPlayerX / sDist) * smileySpeed * timeScale;
-            smileyY += (sToPlayerY / sDist) * smileySpeed * timeScale;
+            let currentSmileySpeed = getSmileySpeed();
+            smileyX += (sToPlayerX / sDist) * currentSmileySpeed * timeScale;
+            smileyY += (sToPlayerY / sDist) * currentSmileySpeed * timeScale;
+        }
+    }
+
+    if (runnerActive) {
+        let rToPlayerX = posX - runnerX;
+        let rToPlayerY = posY - runnerY;
+        let rDist = Math.sqrt(rToPlayerX * rToPlayerX + rToPlayerY * rToPlayerY);
+
+        // 修改這裡：將偵測半徑增加到 5.0（5x5範圍）
+        let inRadius = (rDist <= 5.0);
+        let hasLos = inRadius ? checkLineOfSight(runnerX, runnerY, posX, posY) : false;
+
+        // 觸發追逐的核心判定條件：在範圍內有視線 (看見玩家) 或玩家正在跑步製造聲響
+        let shouldCountRun = (hasLos) || (inRadius && currentlyRunning) || (inRadius && directionChangedDuringRun);
+
+        if (runnerState === "IDLE") {
+            if (shouldCountRun) {
+                runTimer += deltaTimeMs;
+                if (runTimer >= 400) { // 縮短反應時間，更靈敏地捕捉玩家
+                    runnerState = "CHASE";
+                    stopRunTimer = 0;
+                }
+            } else {
+                runTimer = Math.max(0, runTimer - deltaTimeMs);
+            }
+
+            runnerWanderTimer -= deltaTimeMs;
+            if (runnerWanderTimer <= 0) {
+                runnerWanderAngle = Math.random() * Math.PI * 2;
+                runnerWanderTimer = 1000 + Math.random() * 2000; 
+            }
+
+            let wanderSpeed = 0.015 * timeScale;
+            let wanderX = runnerX + Math.cos(runnerWanderAngle) * wanderSpeed;
+            let wanderY = runnerY + Math.sin(runnerWanderAngle) * wanderSpeed;
+
+            let checkDist = 0.25;
+            let testGridX = wanderX + Math.cos(runnerWanderAngle) * checkDist;
+            let testGridY = wanderY + Math.sin(runnerWanderAngle) * checkDist;
+
+            if (getGrid(testGridX, testGridY) === 0) {
+                runnerX = wanderX;
+                runnerY = wanderY;
+            } else {
+                runnerWanderAngle = Math.random() * Math.PI * 2;
+                runnerWanderTimer = 500 + Math.random() * 1500;
+            }
+
+        } else if (runnerState === "CHASE") {
+            if (rDist < 0.35 && !cfg.noclip) {
+                triggerSmileyJumpscare();
+                return;
+            }
+
+            // 追逐時會直接朝著玩家的方向衝過去
+            let runnerCurrentSpeed = (cfg.runSpeed + 0.015) * timeScale; 
+            runnerX += (rToPlayerX / rDist) * runnerCurrentSpeed;
+            runnerY += (rToPlayerY / rDist) * runnerCurrentSpeed;
+
+            // 如果玩家不再跑步，且 Runner 丟失玩家視線，則會在 2 秒後放棄追逐
+            if (!currentlyRunning && !hasLos) {
+                stopRunTimer += deltaTimeMs;
+                if (stopRunTimer >= 2000) { 
+                    runnerState = "IDLE";
+                    runTimer = 0;
+                }
+            } else {
+                stopRunTimer = 0;
+            }
         }
     }
 }
@@ -1026,7 +1003,6 @@ function render() {
     const fTex = textures['floor'].data;
     const cTex = textures['ceiling'].data;
     
-    // 渲染主景 (帶入垂直視角 pitchAngle 與高度 zOffset 偏移量)
     for (let x = 0; x < w; x++) {
         let cameraX = 2 * x / w - 1;
         let rayDirX = dirX + planeX * cameraX;
@@ -1111,79 +1087,6 @@ function render() {
     }
     ctx.putImageData(imgData, 0, 0);
 
-    let npcOnScreen = false;
-    let npcScreenX = 0;
-    let npcScaleHeight = 0;
-
-    if (npcActive) {
-        let spriteX = npcX - posX;
-        let spriteY = npcY - posY;
-        let invDet = 1.0 / (planeX * dirY - dirX * planeY);
-        let transformX = invDet * (dirY * spriteX - dirX * spriteY);
-        let transformY = invDet * (-planeY * spriteX + planeX * spriteY); 
-        
-        if (transformY > 0.05) {
-            let spriteScreenX = Math.floor((w / 2) * (1 + transformX / transformY));
-            let spriteHeight = Math.abs(Math.floor(h / transformY));
-            let spriteWidth = Math.abs(Math.floor(h / transformY));
-            let drawStartX = Math.max(0, -spriteWidth / 2 + spriteScreenX);
-            let drawEndX = Math.min(w - 1, spriteWidth / 2 + spriteScreenX);
-            
-            npcOnScreen = true;
-            npcScreenX = spriteScreenX;
-            npcScaleHeight = spriteHeight;
-
-            let currentCenterY = h / 2 + pitchAngle + (zOffset / transformY);
-
-            ctx.fillStyle = 'rgba(8, 8, 8, 0.98)'; 
-            for (let stripe = drawStartX; stripe < drawEndX; stripe++) {
-                if (transformY < zBuffer[stripe]) {
-                    let expr = (stripe - spriteScreenX) / (spriteWidth / 2);
-                    if (Math.abs(expr) <= 1.0) {
-                        let sphereFactor = Math.sqrt(1.0 - expr * expr);
-                        let calculatedHeight = spriteHeight * sphereFactor * 0.75;
-                        ctx.fillRect(stripe, currentCenterY - calculatedHeight / 2, 1, calculatedHeight);
-
-                        ctx.fillStyle = 'rgba(15, 15, 15, 0.95)';
-                        if (Math.random() < 0.85) {
-                            ctx.beginPath();
-                            ctx.arc(stripe, currentCenterY + (Math.random() - 0.5) * calculatedHeight * 1.2, 3 + Math.random() * 6, 0, Math.PI * 2);
-                            ctx.fill();
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    if (showRedSmile && npcOnScreen) {
-        ctx.save();
-        ctx.strokeStyle = '#ff0000';
-        ctx.lineWidth = Math.max(5, npcScaleHeight * 0.035); 
-        ctx.lineCap = 'round';
-        
-        let eyeOffset = npcScaleHeight * 0.14;   
-        let eyeSize = npcScaleHeight * 0.045;   
-        let mouthRadius = npcScaleHeight * 0.12; 
-        
-        let toNpcY = npcY - posY;
-        let toNpcX = npcX - posX;
-        let sInvDet = 1.0 / (planeX * dirY - dirX * planeY);
-        let sTransformY = sInvDet * (-planeY * toNpcX + planeX * toNpcY);
-        let centerY = h / 2 - npcScaleHeight * 0.05 + pitchAngle + (zOffset / sTransformY);
-
-        ctx.fillStyle = '#ff0000';
-        ctx.beginPath();
-        ctx.arc(npcScreenX - eyeOffset, centerY, eyeSize, 0, Math.PI * 2);
-        ctx.arc(npcScreenX + eyeOffset, centerY, eyeSize, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.arc(npcScreenX, centerY + npcScaleHeight * 0.08, mouthRadius, 0.1 * Math.PI, 0.9 * Math.PI);
-        ctx.stroke();
-        ctx.restore();
-    }
-
     if (smileyActive) {
         let sSpriteX = smileyX - posX;
         let sSpriteY = smileyY - posY;
@@ -1196,9 +1099,14 @@ function render() {
             let sHeight = Math.abs(Math.floor(h / sTransformY));
             let sWidth = sHeight; 
 
-            ctx.save();
             let isBehindWall = sTransformY > zBuffer[sScreenX];
-            ctx.globalAlpha = isBehindWall ? 0.35 : 0.95;
+            
+            ctx.save();
+            if (isBehindWall) {
+                ctx.globalAlpha = 0.35; 
+            } else {
+                ctx.globalAlpha = 0.95;
+            }
 
             let sCenterY = h / 2 + pitchAngle + (zOffset / sTransformY);
             let radius = sWidth * 0.45;
@@ -1257,16 +1165,53 @@ function render() {
         }
     }
 
-    if (screenFogIntensity > 0) {
-        ctx.fillStyle = `rgba(12, 12, 12, ${screenFogIntensity})`;
-        ctx.fillRect(0, 0, w, h);
-        
-        if (screenFogIntensity > 0.1) {
-            ctx.fillStyle = `rgba(26, 26, 26, ${screenFogIntensity * 0.95})`;
-            for (let i = 0; i < 450 * screenFogIntensity; i++) {
+    if (runnerActive) {
+        let rSpriteX = runnerX - posX;
+        let rSpriteY = runnerY - posY;
+        let rInvDet = 1.0 / (planeX * dirY - dirX * planeY);
+        let rTransformX = rInvDet * (dirY * rSpriteX - dirX * rSpriteY);
+        let rTransformY = rInvDet * (-planeY * rSpriteX + planeX * rSpriteY);
+
+        if (rTransformY > 0.1) {
+            let rScreenX = Math.floor((w / 2) * (1 + rTransformX / rTransformY));
+            let rHeight = Math.abs(Math.floor(h / rTransformY));
+            let rWidth = rHeight;
+
+            let isBehindWall = rTransformY > zBuffer[rScreenX];
+            // 只在前方沒有遮蔽物時，才會被呈現在畫面上
+            if (!isBehindWall) {
+                ctx.save();
+                ctx.globalAlpha = 0.95;
+
+                let rCenterY = h / 2 + pitchAngle + (zOffset / rTransformY);
+                let wEye = rWidth * 0.75;
+                let hEye = rHeight * 0.38;
+
+                ctx.fillStyle = '#ffffff';
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = Math.max(2, rHeight * 0.01);
+
                 ctx.beginPath();
-                ctx.arc(Math.random() * w, Math.random() * h, 4 + Math.random() * 20, 0, Math.PI * 2);
+                ctx.moveTo(rScreenX - wEye / 2, rCenterY);
+                ctx.quadraticCurveTo(rScreenX, rCenterY - hEye, rScreenX + wEye / 2, rCenterY);
+                ctx.quadraticCurveTo(rScreenX, rCenterY + hEye, rScreenX - wEye / 2, rCenterY);
+                ctx.closePath();
                 ctx.fill();
+                ctx.stroke();
+
+                let irisRadius = Math.min(wEye, hEye) * 0.42;
+                ctx.fillStyle = '#000000';
+                ctx.beginPath();
+                ctx.arc(rScreenX, rCenterY, irisRadius, 0, Math.PI * 2);
+                ctx.fill();
+
+                let pupilRadius = irisRadius * 0.35; 
+                ctx.fillStyle = '#000000';
+                ctx.beginPath();
+                ctx.arc(rScreenX, rCenterY, pupilRadius, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
             }
         }
     }
@@ -1283,7 +1228,6 @@ function render() {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
-    // --- DevMode Minimap 地圖實時繪製管線 ---
     if (cfg.minimap) {
         ctx.save();
         let size = 6; 
@@ -1309,7 +1253,6 @@ function render() {
             }
         }
 
-        // 玩家定位點與面朝方向指引線
         ctx.fillStyle = '#ff0000';
         ctx.beginPath();
         ctx.arc(offsetX + posX * size, offsetY + posY * size, 3, 0, Math.PI * 2);
@@ -1322,11 +1265,17 @@ function render() {
         ctx.lineTo(offsetX + posX * size + dirX * 10, offsetY + posY * size + dirY * 10);
         ctx.stroke();
 
-        // 追逐者 Smiley 地圖定位紅點
         if (smileyActive) {
             ctx.fillStyle = '#ffea00';
             ctx.beginPath();
             ctx.arc(offsetX + smileyX * size, offsetY + smileyY * size, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        if (runnerActive) {
+            ctx.fillStyle = (runnerState === "CHASE") ? "#ff0000" : "#ff4500";
+            ctx.beginPath();
+            ctx.arc(offsetX + runnerX * size, offsetY + runnerY * size, 3, 0, Math.PI * 2);
             ctx.fill();
         }
         ctx.restore();
@@ -1370,12 +1319,10 @@ function startLoop() {
     requestAnimationFrame(frameLoop);
 }
 
-if (localStorage.getItem('the_dust_curse') !== 'true') {
-    generateDenseMaze();
-    resize();
-    setupDevListeners();
-    startLoop();
-}
+generateDenseMaze();
+resize();
+setupDevListeners();
+startLoop();
 </script>
 </body>
 </html>
