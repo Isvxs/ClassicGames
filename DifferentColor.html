@@ -61,7 +61,6 @@
             width: 100%;
             max-width: 420px;
             position: relative;
-            /* 讓色盲濾鏡套用在具備過渡動畫的屬性上，達成流暢淡出淡入 */
             transition: filter 0.6s var(--spring-easing);
         }
 
@@ -138,7 +137,7 @@
         @media (prefers-color-scheme: dark) { .ios-select-options { background: rgba(255, 255, 255, 0.01); } }
         
         .ios-select-container.open .ios-select-options {
-            max-height: 320px; /* 放寬高度以完整顯示所有時間選項 */
+            max-height: 320px;
         }
 
         .ios-option-item {
@@ -152,12 +151,8 @@
             align-items: center;
             transition: background 0.2s;
         }
-        .ios-option-item:active {
-            background: var(--ios-menu-item-bg);
-        }
-        .ios-option-item.selected {
-            color: var(--ios-primary);
-        }
+        .ios-option-item:active { background: var(--ios-menu-item-bg); }
+        .ios-option-item.selected { color: var(--ios-primary); }
         .ios-option-item.selected::after {
             content: '✓';
             font-size: 0.85rem;
@@ -214,9 +209,7 @@
         }
         @media (prefers-color-scheme: dark) { .picker-section { background: rgba(255,255,255,0.02); } }
 
-        .color-wheel-wrapper {
-            position: relative; width: 180px; height: 180px;
-        }
+        .color-wheel-wrapper { position: relative; width: 180px; height: 180px; }
         .color-wheel { width: 100%; height: 100%; border-radius: 50%; box-shadow: 0 4px 20px rgba(0,0,0,0.08); position: relative; }
         
         .wheel-hsv { background: conic-gradient(from 0deg, red, yellow, lime, cyan, blue, magenta, red); }
@@ -262,7 +255,6 @@
         .result-item .num { font-size: 1.3rem; letter-spacing: -0.5px; font-variant-numeric: tabular-nums; }
         .result-item .label { font-size: 0.7rem; color: var(--ios-secondary-label); text-transform: uppercase; margin-top: 4px; }
 
-        /* SVG 色盲模擬濾鏡宣告 */
         .filter-protanopia { filter: url('#protanopia-filter'); }
         .filter-deuteranopia { filter: url('#deuteranopia-filter'); }
         .filter-tritanopia { filter: url('#tritanopia-filter'); }
@@ -411,11 +403,9 @@
         let selectedHardcore = "NONE";
         let selectedColorblind = "NONE";
 
-        // Devmode 單局生命週期
         let isDevMode = false;
         let rightClickCount = 0;
 
-        // 局內右鍵連擊 3 次事件
         window.addEventListener('contextmenu', (e) => {
             if (gameScreen.classList.contains('active') && !isRevealed) {
                 e.preventDefault();
@@ -492,7 +482,6 @@
         let currentHue = 0, currentSat = 0, currentVal = 100;
         let labA = 0, labB = 0, labL = 100;
 
-        // 套用全域濾鏡方法
         function applyColorblindFilter() {
             appWindow.className = "app-window";
             if(selectedColorblind !== 'NONE') {
@@ -521,7 +510,6 @@
             timeSetting = selectedTimer;
             hardcoreMode = selectedHardcore;
             
-            // 進入遊戲時，淡入色盲濾鏡
             applyColorblindFilter();
 
             const oldCanvas = document.getElementById('labCanvasElement');
@@ -554,7 +542,7 @@
 
         backBtn.addEventListener('click', () => {
             clearInterval(timerInterval);
-            appWindow.className = "app-window"; // 退出時徹底清空色盲濾鏡
+            appWindow.className = "app-window";
             switchScreen(menuScreen);
         });
 
@@ -597,7 +585,6 @@
             moveCount = 0;
             isTimerRunning = false; 
 
-            // 按下下一關時：重新淡入色盲濾鏡
             applyColorblindFilter();
 
             targetColor = {
@@ -733,7 +720,6 @@
             isRevealed = true;
             clearInterval(timerInterval);
 
-            // 送出答案瞬間：將色盲濾鏡淡出還原為正常視覺
             appWindow.className = "app-window"; 
 
             targetHex.innerText = rgbToHex(targetColor.r, targetColor.g, targetColor.b);
@@ -752,7 +738,8 @@
                         Math.pow(targetColor.g - playerColor.g, 2) +
                         Math.pow(targetColor.b - playerColor.b, 2)
                     );
-                    accuracy = (1 - (distance / 441.673)) * 100;
+                    // 修正色彩空間距離敏感度，讓肉眼可見的色差有更顯著的分數衰減
+                    accuracy = (1 - Math.pow(distance / 441.673, 0.85)) * 100;
                 } else {
                     const labTarget = rgbToLab(targetColor.r, targetColor.g, targetColor.b);
                     const labPlayer = rgbToLab(playerColor.r, playerColor.g, playerColor.b);
@@ -761,35 +748,29 @@
                         Math.pow(labTarget.a - labPlayer.a, 2) +
                         Math.pow(labTarget.b - labPlayer.b, 2)
                     );
-                    accuracy = (1 - (distance / 200)) * 100;
+                    accuracy = (1 - Math.pow(distance / 180, 0.85)) * 100;
                 }
                 if (accuracy < 0) accuracy = 0;
 
-                // 【全新寬鬆度疊加物理演算法】
-                let bonusPercent = 0;
+                // 【極微幅固定補償機制：各 Debuff 固定約 0.5% ~ 1.0%】
+                let bonusFlat = 0;
 
-                // 只有在同時滿足 Hardcore + Time Limit + 色盲開啟時，才單獨累加 Hardcore 權重
-                if (hardcoreMode !== 'NONE' && timeSetting !== 'OFF' && selectedColorblind !== 'NONE') {
-                    bonusPercent += 10; // hardcore+10%
+                // 只有在玩家確實進行過調整時，才給予微幅補償 (掛機/沒動 moveCount===0 不給加成)
+                if (moveCount > 0) {
+                    if (selectedColorblind !== 'NONE') bonusFlat += 1.0; // 色盲模式 +1.0%
+                    if (engine === 'LAB') bonusFlat += 0.5;              // LAB 空間 +0.5%
+
+                    if (timeSetting !== 'OFF') {
+                        const secs = parseFloat(timeSetting);
+                        if (secs <= 2) bonusFlat += 1.0;        // 極限 2 秒 +1.0%
+                        else if (secs <= 10) bonusFlat += 0.5;   // 10 秒內 +0.5%
+                    }
+
+                    if (hardcoreMode !== 'NONE') bonusFlat += 0.5; // 硬核限制 +0.5%
                 }
 
-                // 獨立色盲模式加成
-                if (selectedColorblind !== 'NONE') bonusPercent += 5; // 色盲+5%
-                
-                // 獨立 CIELAB 空間加成
-                if (engine === 'LAB') bonusPercent += 5; // CIELAB+5%
-
-                // 時間常規與極限挑戰階梯寬鬆度
-                if (timeSetting !== 'OFF') {
-                    const secs = parseFloat(timeSetting);
-                    if (secs === 2) bonusPercent += 15;       // time limit 2秒最多只加15%
-                    else if (secs === 5) bonusPercent += 10;  
-                    else if (secs === 10) bonusPercent += 6;  
-                    else if (secs === 15) bonusPercent += 3;  
-                }
-
-                let toleranceMultiplier = 1.0 + (bonusPercent / 100);
-                calibratedAccuracy = accuracy * toleranceMultiplier;
+                // 加法結合微幅補償
+                calibratedAccuracy = accuracy + bonusFlat;
                 if (calibratedAccuracy > 100) calibratedAccuracy = 100;
             }
 
@@ -827,8 +808,9 @@
                 isDragging = false; 
                 wheelHandle.style.transform = "scale(1)"; 
                 
+                moveCount++;
+
                 if(hardcoreMode === 'MOVE_LIMIT') {
-                    moveCount++;
                     if(moveCount >= maxMoves) {
                         wheelWrapper.classList.add('disabled-layer');
                         hudModifier.innerText = "操作用盡 (LOCKED)";
@@ -851,6 +833,10 @@
                 startDeferredTimer();
                 updateColorOutput();
             }
+        });
+
+        brightnessSlider.addEventListener('change', () => {
+            if(!isRevealed) moveCount++;
         });
 
         actionBtn.addEventListener('click', () => {
