@@ -45,6 +45,25 @@
             overflow-x: hidden;
         }
 
+        /* 頁面切換淡入淡出遮罩 */
+        .page-transition {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #000000;
+            z-index: 9999;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.4s var(--mechanic-ease);
+        }
+
+        .page-transition.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
         .grid-overlay {
             position: fixed;
             top: 0;
@@ -65,14 +84,14 @@
         }
 
         header {
-            margin-bottom: 60px;
+            margin-bottom: 50px;
             border-left: 4px solid var(--fg);
             padding-left: 30px;
         }
 
         .sys-path {
-            font-size: 0.7rem;
-            letter-spacing: 3px;
+            font-size: 0.75rem;
+            letter-spacing: 2px;
             color: var(--dim);
             text-transform: uppercase;
             font-weight: 600;
@@ -83,7 +102,13 @@
             font-weight: 600;
             letter-spacing: -1px;
             line-height: 1;
-            margin: 10px 0;
+            margin: 10px 0 5px 0;
+        }
+
+        .update-tag {
+            font-size: 0.8rem;
+            color: var(--dim);
+            letter-spacing: 1px;
         }
 
         .protocol-box {
@@ -98,7 +123,7 @@
         }
 
         h2 {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: 600;
             margin-bottom: 25px;
             text-transform: uppercase;
@@ -109,8 +134,8 @@
 
         h2::before {
             content: "";
-            width: 10px;
-            height: 10px;
+            width: 8px;
+            height: 8px;
             background: var(--fg);
             margin-right: 15px;
         }
@@ -134,6 +159,7 @@
             font-size: 1.1rem;
             letter-spacing: 1px;
             transition: all 0.3s var(--mechanic-ease);
+            cursor: pointer;
         }
 
         .game-btn span.status {
@@ -185,13 +211,13 @@
         footer {
             margin-top: auto;
             padding: 40px;
-            font-size: 0.65rem;
+            font-size: 0.75rem;
             color: var(--dim);
             letter-spacing: 2px;
             text-align: center;
         }
 
-        /* ==================== MGC DEV OS ==================== */
+        /* DevTools 控制台 */
         #secret-terminal {
             display: none;
             position: fixed;
@@ -316,7 +342,6 @@
             white-space: pre;
         }
 
-        /* 智慧自動補全側邊框樣式 */
         .autocomplete-panel {
             display: none;
             position: absolute;
@@ -401,34 +426,38 @@
 
 <body>
 
+    <!-- 頁面跳轉過渡遮罩 -->
+    <div class="page-transition" id="page-transition"></div>
+
     <div class="grid-overlay"></div>
 
     <div class="container">
         <header>
-            <span class="sys-path">HOST_TERMINAL // MATRIX_SELECTION</span>
+            <span class="sys-path">GAMES SELECTION</span>
             <h1>遊戲大廳</h1>
+            <div class="update-tag">最後更新：2026.08.31</div>
         </header>
 
         <section class="protocol-box">
-            <h2>主要核心程序</h2>
+            <h2>主要遊戲</h2>
             <div class="game-menu">
-                <a href="3Dmaze.html" class="game-btn">闖關 3D 迷宮<span class="status">[ ONLINE ]</span></a>
-                <a href="DifferentColor.html" class="game-btn btn-accent-glow">核心色網挑戰<span class="status"
-                        style="color: var(--accent);">[ CORE_SYS ]</span></a>
+                <a href="3Dmaze.html" class="game-btn">3D 迷宮<span class="status">[ ONLINE ]</span></a>
+                <a href="DifferentColor.html" class="game-btn btn-accent-glow">找出異色塊<span class="status"
+                        style="color: var(--accent);">[ ONLINE ]</span></a>
+                <a href="LittleMinesweeper.html" class="game-btn">微型踩地雷<span class="status">[ ONLINE ]</span></a>
             </div>
         </section>
 
         <section class="protocol-box" style="animation-delay: 0.15s;">
-            <h2>實驗性分流協定</h2>
+            <h2>實驗性功能</h2>
             <div class="game-menu">
-                <a href="MazeLabs.html" class="game-btn">迷宮實驗室 (MazeLabs)<span class="status">[ TEST_BED ]</span></a>
-                <a href="DClabs.html" class="game-btn">色彩研究室 (DClabs)<span class="status">[ ANALYZING ]</span></a>
-                <a href="LittleMinesweeper.html" class="game-btn">微型踩地雷 (LittleMinesweeper)<span class="status">[
-                        LOGIC_DET ]</span></a>
+                <a href="MazeLabs.html" class="game-btn">迷宮實驗室<span class="status">[ TEST_BED ]</span></a>
+                <a href="DClabs.html" class="game-btn">色彩研究室<span class="status">[ ANALYZING ]</span></a>
             </div>
         </section>
+
         <section class="protocol-box" style="animation-delay: 0.3s;">
-            <h2>經典版本</h2>
+            <h2>經典舊版</h2>
             <div class="game-menu">
                 <a href="old3Dmaze.html" class="game-btn">
                     舊版 3D 迷宮
@@ -436,7 +465,8 @@
                 </a>
             </div>
         </section>
-        <footer>Isvxs Game Matrix</footer>
+
+        <footer>Isvxs Game Matrix // 2026.08.31</footer>
     </div>
 
     <div id="secret-terminal">
@@ -476,7 +506,7 @@
 
     <script>
         const MGC_VERSION = "v4.12.0-SENTRY.IV";
-        const MGC_BUILD_DATE = "2026-06-18 20:37:53";
+        const MGC_BUILD_DATE = "2026-08-31 20:37:53";
 
         // 全量高模擬 DevTools 可用指令與物件字典群
         const COMMAND_DICTIONARY = [
@@ -496,6 +526,7 @@
         const cmdWrapper = document.getElementById("cmd-wrapper");
         const cmdInput = document.getElementById("cmd-input");
         const cmdHint = document.getElementById("cmd-hint");
+        const transitionOverlay = document.getElementById("page-transition");
         
         // 側邊面板結構元素
         const suggestionPanel = document.getElementById("suggestion-panel");
@@ -503,11 +534,30 @@
         const otherMatchesBox = document.getElementById("other-matches-box");
 
         let terminalOpened = false;
-        let everBooted = false; // 用於記憶體狀態：是否曾引導初始化過
+        let everBooted = false;
         let siteLaunchTimeStr = "";
         let currentSuggestion = "";
 
-        // 監聽 777 切換機制 (I/O 開關轉換)
+        // 通用轉場跳轉函式（點擊按鈕時觸發淡入淡出動畫）
+        function navigateTo(url) {
+            transitionOverlay.classList.add("active");
+            setTimeout(() => {
+                window.location.href = url;
+            }, 400); // 動畫時間與 CSS transition 0.4s 一致
+        }
+
+        // 為所有遊戲按鈕綁定淡入淡出跳轉
+        document.querySelectorAll('.game-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetUrl = btn.getAttribute('href');
+                if (targetUrl) {
+                    navigateTo(targetUrl);
+                }
+            });
+        });
+
+        // 監聽 777 切換機制
         window.addEventListener("keydown", (e) => {
             if (e.key === "7" || e.code === "Numpad7") {
                 keyBuffer += "7";
@@ -531,7 +581,6 @@
             terminal.style.display = "flex";
 
             if (!everBooted) {
-                // 首次開啟：跑條並注入 ASCII 與免責聲明
                 const now = new Date();
                 siteLaunchTimeStr = now.toTimeString().split(' ')[0];
                 let currentProgress = 0;
@@ -550,7 +599,6 @@
                     }
                 }, 40);
             } else {
-                // 重複開啟：不顯示動畫與重複訊息，直接解鎖環境
                 unlockMGCConsole(true);
             }
         }
@@ -574,21 +622,19 @@
             cmdInput.focus();
 
             if (!skipWelcomeMessages) {
-                // 1. 注入高密度 ASCII ART
                 const asciiContainer = document.createElement("pre");
                 asciiContainer.className = "ascii-block";
-                asciiContainer.textContent = `                                                                                                                 
- ▄▄▄  ▄▄▄                  ▄▄                      ▄▄                             ▄▄▄▄▄▄                                          
- ███  ███                  ██                      ██                             ▀▀██▀▀                                          
- ████████   ▄█████▄   ▄███▄██   ▄████▄             ██▄███▄   ▀██  ███               ██     ▄▄█████▄  ██▄  ▄██  ▀██  ██▀  ▄▄█████▄ 
- ██ ██ ██   ▀ ▄▄▄██  ██▀  ▀██  ██▄▄▄▄██            ██▀  ▀██   ██▄ ██                ██     ██▄▄▄▄ ▀   ██  ██     ████    ██▄▄▄▄ ▀ 
- ██ ▀▀ ██  ▄██▀▀▀██  ██    ██  ██▀▀▀▀▀▀            ██    ██    ████▀                ██      ▀▀▀▀██▄   ▀█▄▄█▀     ▄██▄     ▀▀▀▀██▄ 
- ██    ██  ██▄▄▄███  ▀██▄▄███  ▀██▄▄▄▄█            ███▄▄██▀     ███               ▄▄██▄▄   █▄▄▄▄▄██    ████     ▄█▀▀█▄   █▄▄▄▄▄██ 
- ▀▀    ▀▀   ▀▀▀▀ ▀▀    ▀▀▀ ▀▀    ▀▀▀▀▀             ▀▀ ▀▀▀       ██                ▀▀▀▀▀▀    ▀▀▀▀▀▀      ▀▀     ▀▀▀  ▀▀▀   ▀▀▀▀▀▀  
-                                                              ███              `;
+                asciiContainer.textContent = `                                                                                                                             
+▄▄▄  ▄▄▄                  ▄▄                      ▄▄                            ▄▄▄▄▄▄                                         
+███  ███                  ██                      ██                            ▀▀██▀▀                                         
+████████   ▄█████▄   ▄███▄██   ▄████▄             ██▄███▄   ▀██  ███                ██     ▄▄█████▄  ██▄  ▄██  ▀██  ██▀  ▄▄█████▄ 
+██ ██ ██   ▀ ▄▄▄██  ██▀  ▀██  ██▄▄▄▄██            ██▀  ▀██   ██▄ ██                 ██     ██▄▄▄▄ ▀   ██  ██     ████    ██▄▄▄▄ ▀ 
+██ ▀▀ ██  ▄██▀▀▀██  ██    ██  ██▀▀▀▀▀▀            ██    ██    ████▀                 ██      ▀▀▀▀██▄   ▀█▄▄█▀     ▄██▄     ▀▀▀▀██▄ 
+██    ██  ██▄▄▄███  ▀██▄▄███  ▀██▄▄▄▄█            ███▄▄██▀     ███                ▄▄██▄▄   █▄▄▄▄▄██    ████     ▄█▀▀█▄   █▄▄▄▄▄██ 
+▀▀    ▀▀   ▀▀▀▀ ▀▀    ▀▀▀ ▀▀    ▀▀▀▀▀             ▀▀ ▀▀▀       ██                 ▀▀▀▀▀▀    ▀▀▀▀▀▀      ▀▀     ▀▀▀  ▀▀▀   ▀▀▀▀▀▀  
+                                                              ███                                                              `;
                 logStream.appendChild(asciiContainer);
 
-                // 同步至原生的 DevTools 控制台並寫入免責
                 console.log(SECURITY_NOTICE, "color: #00ffcc; font-weight: bold; font-size: 13px;", "color: #ff4444; font-weight: bold; font-size: 13px;");
                 appendLog("Isvxs scripts have full control over all script modifications. Forking is prohibited.", "success");
                 appendLog("**IF YOU DONT KNOW WHAT YOU DOING, DO NOT POST ANY COMMANDS OR CONTEXTS HERE!**", "error");
@@ -598,7 +644,6 @@
             }
 
             terminal.addEventListener("click", (e) => {
-                // 點選提示面版時不搶走輸入焦點
                 if(!e.target.closest('.autocomplete-panel')) {
                     cmdInput.focus();
                 }
@@ -639,7 +684,6 @@
             if (terminalOpened) appendLog(`[CONSOLE.ERR] ${args.join(' ')}`, "error"); 
         };
 
-        // 即時追蹤與繪製智慧提示側邊視窗
         cmdInput.addEventListener("input", () => {
             const val = cmdInput.value;
             currentSuggestion = "";
@@ -652,7 +696,6 @@
                 return;
             }
 
-            // 過濾匹配項目
             const matchedCommands = COMMAND_DICTIONARY.filter(cmd => 
                 cmd.toLowerCase().startsWith(val.toLowerCase())
             );
@@ -660,7 +703,6 @@
             if (matchedCommands.length > 0) {
                 suggestionPanel.style.display = "block";
                 
-                // 1. 理處第一接近最優匹配 (Best Match)
                 currentSuggestion = matchedCommands[0];
                 cmdHint.textContent = val + currentSuggestion.slice(val.length);
 
@@ -670,7 +712,6 @@
                 bestElem.addEventListener("click", () => fillAndFocus(currentSuggestion));
                 bestMatchBox.appendChild(bestElem);
 
-                // 2. 處理第二接近及後續候補
                 const secondaryMatches = matchedCommands.slice(1);
                 if(secondaryMatches.length > 0) {
                     secondaryMatches.forEach(cmd => {
@@ -689,7 +730,6 @@
             }
         });
 
-        // 點擊側邊窗元素時自動填入並聚焦
         function fillAndFocus(word) {
             cmdInput.value = word;
             cmdHint.textContent = "";
@@ -697,7 +737,6 @@
             cmdInput.focus();
         }
 
-        // 鍵盤操控補全
         cmdInput.addEventListener("keydown", (e) => {
             if (e.key === "Tab") {
                 e.preventDefault();
@@ -716,10 +755,10 @@
                 suggestionPanel.style.display = "none";
 
                 if (rawCmd === "67") {
-                    window.location.href = "67/67.html";
+                    navigateTo("67/67.html");
                 }
                 else if (rawCmd === "DevWeb") {
-                    window.location.href = "devWeb.html";
+                    navigateTo("devWeb.html");
                 }
                 else if (rawCmd === "!V lastUpdated") {
                     appendLog(`MGC CORE ENGINE VERSION: ${MGC_VERSION}`, "success");

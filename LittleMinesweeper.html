@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>高難度微型望遠鏡踩地雷</title>
+    <title>高難度微型望遠鏡踩地雷 - 進階戰術版</title>
     <style>
         body {
             background-color: #121212;
@@ -18,6 +18,48 @@
             overflow: hidden;
             cursor: none; /* 隱藏原本的滑鼠 */
             user-select: none;
+        }
+
+        #info {
+            margin-bottom: 10px;
+            font-size: 14px;
+            letter-spacing: 1px;
+            text-align: center;
+            line-height: 1.6;
+        }
+        
+        /* 難度選擇樣式 */
+        #difficulty-select {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        #difficulty-select button {
+            background: #252525;
+            color: #aaa;
+            border: 1px solid #444;
+            padding: 5px 15px;
+            cursor: pointer;
+            font-family: monospace;
+            transition: all 0.2s;
+        }
+
+        #difficulty-select button:hover {
+            background: #333;
+            color: #fff;
+        }
+
+        #difficulty-select button.active {
+            background: #ff4500;
+            color: #fff;
+            border-color: #ff6347;
+            box-shadow: 0 0 10px rgba(255, 69, 0, 0.5);
+        }
+
+        #status {
+            font-weight: bold;
+            color: #ff4500;
         }
 
         #game-container {
@@ -36,9 +78,9 @@
             position: absolute;
             width: 100px;  
             height: 100px;
-            border: 3px solid #ff4500; /* 改為橘紅色更顯眼 */
+            border: 3px solid #ff4500; /* 亮橘紅色 */
             border-radius: 50%;
-            box-shadow: 0 0 20px rgba(255, 69, 0, 0.6), inset 0 0 15px rgba(0,0,0,0.9);
+            box-shadow: 0 0 25px rgba(255, 69, 0, 0.8), inset 0 0 15px rgba(0,0,0,0.9);
             pointer-events: none; 
             transform: translate(-50%, -50%);
             display: none; 
@@ -53,25 +95,27 @@
             transform-origin: top left;
         }
 
-        /* 狙擊鏡準心十字線 */
+        /* 狙擊鏡更明顯的十字線與核心準心 */
         #telescope::before, #telescope::after {
             content: '';
             position: absolute;
-            background: rgba(255, 69, 0, 0.4);
+            background: rgba(255, 69, 0, 0.85); /* 提高透明度使十字更明顯 */
+            box-shadow: 0 0 4px rgba(255, 69, 0, 0.5);
         }
-        #telescope::before { top: 50%; left: 0; width: 100%; height: 1px; transform: translateY(-50%); }
-        #telescope::after { left: 50%; top: 0; width: 1px; height: 100%; transform: translateX(-50%); }
+        #telescope::before { top: 50%; left: 0; width: 100%; height: 2px; transform: translateY(-50%); }
+        #telescope::after { left: 50%; top: 0; width: 2px; height: 100%; transform: translateX(-50%); }
 
-        #info {
-            margin-bottom: 15px;
-            font-size: 14px;
-            letter-spacing: 1px;
-            text-align: center;
-            line-height: 1.5;
-        }
-        #status {
-            font-weight: bold;
-            color: #ff4500;
+        /* 中心精確瞄準環 */
+        .center-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 8px;
+            height: 8px;
+            border: 1.5px solid #ff4500;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
         }
     </style>
 </head>
@@ -82,9 +126,16 @@
         任務狀態：<span id="status">準備就緒</span>
     </div>
 
+    <div id="difficulty-select">
+        <button onclick="changeDifficulty(100, this)">偵查兵 (100雷)</button>
+        <button onclick="changeDifficulty(200, this)">精英戰士 (200雷)</button>
+        <button class="active" onclick="changeDifficulty(280, this)">噩夢大師 (280雷)</button>
+    </div>
+
     <div id="game-container">
         <canvas id="gameCanvas"></canvas>
         <div id="telescope">
+            <div class="center-ring"></div>
             <canvas id="zoomCanvas"></canvas>
         </div>
     </div>
@@ -93,8 +144,12 @@
         const COLS = 40;
         const ROWS = 40;
         const CELL_SIZE = 5; // 每格 5px
-        const MINES_COUNT = 280; // 大幅增加地雷數（約17.5%密度），避免一掀開空一大片
         const ZOOM_FACTOR = 6;  // 放大倍率
+        
+        // 降低滑鼠靈敏度（重力感緩動係數）：數值越小，望遠鏡移動越慢、越穩。建議 0.1 ~ 0.2 之間。
+        const SENSITIVITY_SMOOTHING = 0.15; 
+
+        let MINES_COUNT = 280; 
 
         const container = document.getElementById('game-container');
         const canvas = document.getElementById('gameCanvas');
@@ -114,28 +169,31 @@
         let gameOver = false;
         let gameWon = false;
 
+        // 追蹤滑鼠與望遠鏡緩動座標
+        let targetX = 0, targetY = 0;
+        let currentX = 0, currentY = 0;
+        let isMouseIn = false;
+
         function initGame() {
             grid = [];
             gameOver = false;
             gameWon = false;
-            statusText.innerText = "偵查中...";
+            statusText.innerText = `偵查中... (當前雷數: ${MINES_COUNT})`;
             statusText.style.color = "#ff4500";
 
-            // 建立地圖並加入隨機視覺噪點（seed）
+            // 建立地圖並加入隨機視覺噪點
             for (let r = 0; r < ROWS; r++) {
                 grid[r] = [];
                 for (let c = 0; c < COLS; c++) {
-                    // 讓每格未挖開的灰色、挖開的白色都有輕微的隨機色差
                     let graySeed = Math.floor(Math.random() * 15); 
                     grid[r][c] = {
                         isMine: false,
                         revealed: false,
                         flagged: false,
                         neighborMines: 0,
-                        // 預先決定每格的隨機外觀色彩
                         colorUnrevealed: `rgb(${45 + graySeed}, ${45 + graySeed}, ${45 + graySeed})`,
                         colorRevealed: `rgb(${210 + graySeed}, ${210 + graySeed}, ${210 + graySeed})`,
-                        flagOffset: Math.random() * 2 - 1 // 插旗時微幅歪斜，看起來更自然
+                        flagOffset: Math.random() * 2 - 1 
                     };
                 }
             }
@@ -171,7 +229,16 @@
             draw();
         }
 
-        // 繪製微型地圖 (5px 每格)
+        function changeDifficulty(mines, btnElement) {
+            MINES_COUNT = mines;
+            // 切換按鈕 active 樣式
+            const buttons = document.querySelectorAll('#difficulty-select button');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            btnElement.classList.add('active');
+            initGame();
+        }
+
+        // 繪製微型地圖
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -196,7 +263,6 @@
                             }
                         }
                     } else {
-                        // 使用隨機雜色深灰
                         ctx.fillStyle = cell.colorUnrevealed;
                         ctx.fillRect(x, y, CELL_SIZE - 1, CELL_SIZE - 1); 
 
@@ -210,7 +276,7 @@
             updateZoom();
         }
 
-        // 繪製望遠鏡內部 (30px 每格)
+        // 繪製望遠鏡內部
         function updateZoom() {
             zoomCtx.clearRect(0, 0, zoomCanvas.width, zoomCanvas.height);
             const Z_CELL = CELL_SIZE * ZOOM_FACTOR; 
@@ -225,7 +291,6 @@
                         if (cell.isMine) {
                             zoomCtx.fillStyle = '#ff2222';
                             zoomCtx.fillRect(x, y, Z_CELL, Z_CELL);
-                            // 炸彈 💣
                             zoomCtx.fillStyle = '#000000';
                             zoomCtx.beginPath();
                             zoomCtx.arc(x + Z_CELL/2, y + Z_CELL/2, Z_CELL/4, 0, Math.PI*2);
@@ -247,17 +312,14 @@
                             }
                         }
                     } else {
-                        // 未挖開的立體方塊與噪點
                         zoomCtx.fillStyle = cell.colorUnrevealed;
                         zoomCtx.fillRect(x, y, Z_CELL, Z_CELL);
                         
-                        // 讓格線有老舊戰術螢幕的感覺
                         zoomCtx.strokeStyle = '#555555';
                         zoomCtx.lineWidth = 1;
                         zoomCtx.strokeRect(x, y, Z_CELL, Z_CELL);
 
                         if (cell.flagged) {
-                            // 帶有稍微隨機偏角的旗子 🚩
                             let ox = cell.flagOffset * 2;
                             zoomCtx.fillStyle = '#ff3333';
                             zoomCtx.beginPath();
@@ -286,7 +348,6 @@
 
             cell.revealed = true;
 
-            // 因為地雷變多且隨機，遇到 0 的連鎖反應會自然變小，不易一次解開全圖
             if (cell.neighborMines === 0 && !cell.isMine) {
                 for (let dr = -1; dr <= 1; dr++) {
                     for (let dc = -1; dc <= 1; dc++) {
@@ -317,43 +378,60 @@
             draw();
         }
 
-        // 望遠鏡隨滑鼠移動
+        // 滑鼠移動時，只更新「目標位置」
         container.addEventListener('mousemove', (e) => {
             const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
+            targetX = e.clientX - rect.left;
+            targetY = e.clientY - rect.top;
 
-            if (mouseX >= 0 && mouseX <= rect.width && mouseY >= 0 && mouseY <= rect.height) {
+            if (targetX >= 0 && targetX <= rect.width && targetY >= 0 && targetY <= rect.height) {
+                isMouseIn = true;
+            } else {
+                isMouseIn = false;
+            }
+        });
+
+        container.addEventListener('mouseleave', () => {
+            isMouseIn = false;
+        });
+
+        // 利用心跳動畫 (Animation Loop) 實現平滑緩動 (模擬低靈敏度重量感)
+        function animateTelescope() {
+            if (isMouseIn) {
                 telescope.style.display = 'block';
-                telescope.style.left = mouseX + 'px';
-                telescope.style.top = mouseY + 'px';
+                
+                // 線性插值公式：當前位置逐步逼近滑鼠位置
+                currentX += (targetX - currentX) * SENSITIVITY_SMOOTHING;
+                currentY += (targetY - currentY) * SENSITIVITY_SMOOTHING;
 
-                // 修正公式：50 是目前望遠鏡新半徑 (100/2)
-                const zoomX = -(mouseX * ZOOM_FACTOR) + 50; 
-                const zoomY = -(mouseY * ZOOM_FACTOR) + 50;
+                telescope.style.left = currentX + 'px';
+                telescope.style.top = currentY + 'px';
+
+                // 連動放大鏡布景 (50 是望遠鏡半徑 100/2)
+                const zoomX = -(currentX * ZOOM_FACTOR) + 50; 
+                const zoomY = -(currentY * ZOOM_FACTOR) + 50;
                 zoomCanvas.style.left = zoomX + 'px';
                 zoomCanvas.style.top = zoomY + 'px';
             } else {
                 telescope.style.display = 'none';
             }
-        });
+            requestAnimationFrame(animateTelescope);
+        }
+        // 啟動動畫
+        requestAnimationFrame(animateTelescope);
 
-        container.addEventListener('mouseleave', () => {
-            telescope.style.display = 'none';
-        });
-
+        // 點擊事件：改用緩動後的 currentX / currentY 進行判定，確保點擊位置就是眼睛看到的十字中心
         container.addEventListener('mousedown', (e) => {
             if (gameOver || gameWon) {
                 initGame();
                 return;
             }
 
-            const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
+            if (!isMouseIn) return;
 
-            const c = Math.floor(mouseX / CELL_SIZE);
-            const r = Math.floor(mouseY / CELL_SIZE);
+            // 以十字準心當前的物理座標來計算格子
+            const c = Math.floor(currentX / CELL_SIZE);
+            const r = Math.floor(currentY / CELL_SIZE);
 
             if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
                 if (e.button === 0) { 
@@ -378,6 +456,7 @@
 
         container.addEventListener('contextmenu', e => e.preventDefault());
 
+        // 初始化
         initGame();
     </script>
 </body>
