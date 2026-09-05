@@ -22,8 +22,7 @@
             --bg: #000000;
             --fg: #ffffff;
             --dim: rgba(255, 255, 255, 0.4);
-            --border: rgba(255, 255, 255, 0.1);
-            --accent: #00ffcc;
+            --border: rgba(255, 255, 255, 0.15);
             --mechanic-ease: cubic-bezier(0.19, 1, 0.22, 1);
         }
 
@@ -43,25 +42,6 @@
             flex-direction: column;
             align-items: center;
             overflow-x: hidden;
-        }
-
-        /* 頁面切換淡入淡出遮罩 */
-        .page-transition {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background-color: #000000;
-            z-index: 9999;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.4s var(--mechanic-ease);
-        }
-
-        .page-transition.active {
-            opacity: 1;
-            pointer-events: all;
         }
 
         .grid-overlay {
@@ -159,7 +139,6 @@
             font-size: 1.1rem;
             letter-spacing: 1px;
             transition: all 0.3s var(--mechanic-ease);
-            cursor: pointer;
         }
 
         .game-btn span.status {
@@ -177,28 +156,13 @@
             background: rgba(255, 255, 255, 0.08);
             border-color: var(--fg);
             padding-left: 40px;
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.05);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.08);
         }
 
         .game-btn:hover span.status {
             color: var(--bg);
             background: var(--fg);
             border-color: var(--fg);
-        }
-
-        .btn-accent-glow {
-            border-color: rgba(0, 255, 204, 0.3);
-        }
-
-        .btn-accent-glow:hover {
-            border-color: var(--accent);
-            box-shadow: 0 0 20px rgba(0, 255, 204, 0.15);
-        }
-
-        .btn-accent-glow:hover span.status {
-            background: var(--accent);
-            color: var(--bg);
-            border-color: var(--accent);
         }
 
         @keyframes moduleLoad {
@@ -217,7 +181,7 @@
             text-align: center;
         }
 
-        /* DevTools 控制台 */
+        /* DevTools 控制台 (純黑白風格) */
         #secret-terminal {
             display: none;
             position: fixed;
@@ -268,7 +232,7 @@
             overflow-y: auto;
             font-size: 11px;
             line-height: 1.4;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             background: rgba(255, 255, 255, 0.01);
             padding: 15px;
             margin: 15px 0;
@@ -293,10 +257,10 @@
         }
 
         .log-info { color: #ffffff; }
-        .log-warn { color: #ffaa00; background: rgba(255, 170, 0, 0.1); padding: 1px 4px; border-radius: 2px; }
-        .log-error { color: #ff4444; background: rgba(255, 68, 68, 0.1); padding: 1px 4px; border-radius: 2px; font-weight: bold; }
-        .log-success { color: #00ffcc; }
-        .log-input { color: #aaaaaa; }
+        .log-warn { color: #ffffff; background: rgba(255, 255, 255, 0.15); padding: 1px 4px; }
+        .log-error { color: #000000; background: #ffffff; padding: 1px 4px; font-weight: bold; }
+        .log-success { color: #ffffff; font-weight: bold; }
+        .log-input { color: #888888; }
 
         .cmd-line-wrapper {
             display: none;
@@ -334,7 +298,7 @@
             position: absolute;
             left: 0;
             top: 0;
-            color: rgba(255, 255, 255, 0.25);
+            color: rgba(255, 255, 255, 0.3);
             font-family: monospace;
             font-size: 13px;
             z-index: 1;
@@ -348,9 +312,9 @@
             bottom: 40px;
             left: 20px;
             width: 320px;
-            background: #111111;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 4px 25px rgba(0,0,0,0.8);
+            background: #000000;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 25px rgba(0,0,0,0.9);
             font-family: monospace;
             font-size: 12px;
             z-index: 100000;
@@ -360,12 +324,12 @@
 
         .panel-section {
             padding: 6px 10px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .panel-label {
             font-size: 10px;
-            color: #00ffcc;
+            color: var(--dim);
             text-transform: uppercase;
             letter-spacing: 1px;
             margin-bottom: 4px;
@@ -381,14 +345,14 @@
         }
 
         .suggestion-item:hover {
-            background: rgba(255, 255, 255, 0.15);
-            color: #00ffcc;
+            background: #ffffff;
+            color: #000000;
         }
 
         .suggestion-item.best-match {
             font-weight: bold;
-            color: #00ffcc;
-            background: rgba(0, 255, 204, 0.06);
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.1);
         }
 
         .term-footer {
@@ -413,7 +377,7 @@
         }
 
         .log-matrix-stream::-webkit-scrollbar-thumb, .autocomplete-panel::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.3);
         }
 
         @media (max-width: 768px) {
@@ -425,9 +389,6 @@
 </head>
 
 <body>
-
-    <!-- 頁面跳轉過渡遮罩 -->
-    <div class="page-transition" id="page-transition"></div>
 
     <div class="grid-overlay"></div>
 
@@ -442,8 +403,7 @@
             <h2>主要遊戲</h2>
             <div class="game-menu">
                 <a href="3Dmaze.html" class="game-btn">3D 迷宮<span class="status">[ ONLINE ]</span></a>
-                <a href="DifferentColor.html" class="game-btn btn-accent-glow">找出異色塊<span class="status"
-                        style="color: var(--accent);">[ ONLINE ]</span></a>
+                <a href="DifferentColor.html" class="game-btn">找出異色塊<span class="status">[ ONLINE ]</span></a>
                 <a href="LittleMinesweeper.html" class="game-btn">微型踩地雷<span class="status">[ ONLINE ]</span></a>
             </div>
         </section>
@@ -453,6 +413,7 @@
             <div class="game-menu">
                 <a href="MazeLabs.html" class="game-btn">迷宮實驗室<span class="status">[ TEST_BED ]</span></a>
                 <a href="DClabs.html" class="game-btn">色彩研究室<span class="status">[ ANALYZING ]</span></a>
+                <a href="TimerGame.html" class="game-btn">倒計時遊戲<span class="status">[ TESTING ]</span></a>
             </div>
         </section>
 
@@ -508,7 +469,6 @@
         const MGC_VERSION = "v4.12.0-SENTRY.IV";
         const MGC_BUILD_DATE = "2026-08-31 20:37:53";
 
-        // 全量高模擬 DevTools 可用指令與物件字典群
         const COMMAND_DICTIONARY = [
             "alert", "alert()", "atop", "alerp", "clear", "clear()", "cls", "console",
             "console.log", "console.warn", "console.error", "console.clear()", "console.table",
@@ -526,9 +486,7 @@
         const cmdWrapper = document.getElementById("cmd-wrapper");
         const cmdInput = document.getElementById("cmd-input");
         const cmdHint = document.getElementById("cmd-hint");
-        const transitionOverlay = document.getElementById("page-transition");
         
-        // 側邊面板結構元素
         const suggestionPanel = document.getElementById("suggestion-panel");
         const bestMatchBox = document.getElementById("best-match-box");
         const otherMatchesBox = document.getElementById("other-matches-box");
@@ -537,25 +495,6 @@
         let everBooted = false;
         let siteLaunchTimeStr = "";
         let currentSuggestion = "";
-
-        // 通用轉場跳轉函式（點擊按鈕時觸發淡入淡出動畫）
-        function navigateTo(url) {
-            transitionOverlay.classList.add("active");
-            setTimeout(() => {
-                window.location.href = url;
-            }, 400); // 動畫時間與 CSS transition 0.4s 一致
-        }
-
-        // 為所有遊戲按鈕綁定淡入淡出跳轉
-        document.querySelectorAll('.game-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                const targetUrl = btn.getAttribute('href');
-                if (targetUrl) {
-                    navigateTo(targetUrl);
-                }
-            });
-        });
 
         // 監聽 777 切換機制
         window.addEventListener("keydown", (e) => {
@@ -635,7 +574,7 @@
                                                               ███                                                              `;
                 logStream.appendChild(asciiContainer);
 
-                console.log(SECURITY_NOTICE, "color: #00ffcc; font-weight: bold; font-size: 13px;", "color: #ff4444; font-weight: bold; font-size: 13px;");
+                console.log(SECURITY_NOTICE, "color: #ffffff; font-weight: bold; font-size: 13px;", "color: #ffffff; font-weight: bold; font-size: 13px;");
                 appendLog("Isvxs scripts have full control over all script modifications. Forking is prohibited.", "success");
                 appendLog("**IF YOU DONT KNOW WHAT YOU DOING, DO NOT POST ANY COMMANDS OR CONTEXTS HERE!**", "error");
                 appendLog(`❖ ${siteLaunchTimeStr} [NOW] Running Isvxs owned's game`, "success");
@@ -722,7 +661,7 @@
                         otherMatchesBox.appendChild(item);
                     });
                 } else {
-                    otherMatchesBox.innerHTML = `<div style="padding:4px 6px; color:rgba(255,255,255,0.2)">無其他符合候補</div>`;
+                    otherMatchesBox.innerHTML = `<div style="padding:4px 6px; color:rgba(255,255,255,0.3)">無其他符合候補</div>`;
                 }
             } else {
                 cmdHint.textContent = "";
@@ -755,10 +694,10 @@
                 suggestionPanel.style.display = "none";
 
                 if (rawCmd === "67") {
-                    navigateTo("67/67.html");
+                    window.location.href = "67/67.html";
                 }
                 else if (rawCmd === "DevWeb") {
-                    navigateTo("devWeb.html");
+                    window.location.href = "devWeb.html";
                 }
                 else if (rawCmd === "!V lastUpdated") {
                     appendLog(`MGC CORE ENGINE VERSION: ${MGC_VERSION}`, "success");

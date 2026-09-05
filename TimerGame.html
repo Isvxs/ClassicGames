@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Precision Timer Pro - Pro Modes</title>
+    <style>
+        @font-face {
+            font-family: 'BuilderSans-Medium';
+            src: local('BuilderSans-Medium'), local('BuilderSansMedium'), url('BuilderSans-Medium-500.otf') format('opentype');
+            font-weight: 500;
+        }
+
+        :root {
+            --ios-bg: #f2f2f7;
+            --ios-card: rgba(255, 255, 255, 0.85);
+            --ios-label: #000000;
+            --ios-secondary-label: #8e8e93;
+            --ios-border: rgba(0, 0, 0, 0.08);
+            --ios-primary: #007aff;
+            --ios-success: #34c759;
+            --ios-error: #ff3b30;
+            --ios-warning: #ff9500;
+            --spring-easing: cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --ios-bg: #1c1c1e;
+                --ios-card: rgba(28, 28, 30, 0.85);
+                --ios-label: #ffffff;
+                --ios-secondary-label: #aeaeae;
+                --ios-border: rgba(255, 255, 255, 0.1);
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0; padding: 0;
+            font-family: 'BuilderSans-Medium', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-weight: 500 !important;
+            -webkit-font-smoothing: antialiased;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: var(--ios-bg);
+            color: var(--ios-label);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        .app-window {
+            width: 100%;
+            max-width: 420px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .leaderboard-panel {
+            position: absolute;
+            left: calc(50% + 230px);
+            top: 50%;
+            transform: translateY(-50%);
+            width: 260px;
+            background: var(--ios-card);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border-radius: 28px;
+            border: 1px solid var(--ios-border);
+            padding: 20px;
+            box-shadow: 0 14px 40px rgba(0,0,0,0.06);
+            display: none;
+            z-index: 1;
+        }
+        .leaderboard-panel.active { display: block; }
+
+        @media (max-width: 980px) {
+            .leaderboard-panel {
+                position: static;
+                transform: none;
+                margin-top: 20px;
+                width: 100%;
+                max-width: 420px;
+            }
+            body { flex-direction: column; }
+        }
+
+        .lb-header {
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--ios-border);
+            padding-bottom: 8px;
+        }
+
+        .lb-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 380px;
+            overflow-y: auto;
+        }
+
+        .lb-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: rgba(0,0,0,0.02);
+            border: 1px solid var(--ios-border);
+            border-radius: 12px;
+            font-size: 0.85rem;
+        }
+        @media (prefers-color-scheme: dark) { .lb-item { background: rgba(255,255,255,0.02); } }
+
+        .lb-rank { font-weight: bold; width: 30px; color: var(--ios-secondary-label); }
+        .lb-rank.top1 { color: var(--ios-warning); }
+        .lb-player { flex-grow: 1; text-align: left; }
+        .lb-score { font-variant-numeric: tabular-nums; font-weight: bold; color: var(--ios-primary); }
+
+        .screen {
+            width: 100%;
+            background: var(--ios-card);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border-radius: 38px;
+            border: 1px solid var(--ios-border);
+            padding: 24px;
+            box-shadow: 0 14px 40px rgba(0,0,0,0.06);
+            display: none;
+            position: absolute;
+            top: 0; left: 0;
+            transform: translateY(30px);
+            opacity: 0;
+            transition: transform 0.6s var(--spring-easing), opacity 0.4s ease;
+        }
+
+        .screen.active {
+            display: block;
+            position: relative;
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        header { text-align: center; margin-bottom: 20px; }
+        header h1 { font-size: 1.4rem; letter-spacing: -0.5px; }
+        header p { font-size: 0.85rem; color: var(--ios-secondary-label); margin-top: 4px; }
+
+        .menu-options { display: flex; flex-direction: column; gap: 12px; margin: 20px 0; }
+
+        .ios-select-container {
+            background: rgba(0,0,0,0.02);
+            border: 1px solid var(--ios-border);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        @media (prefers-color-scheme: dark) { .ios-select-container { background: rgba(255,255,255,0.02); } }
+
+        .ios-select-header {
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+        .ios-select-header label { font-size: 0.9rem; cursor: pointer; }
+        .ios-select-value { color: var(--ios-primary); font-size: 0.9rem; display: flex; align-items: center; gap: 6px; }
+        .ios-arrow { font-size: 0.75rem; color: var(--ios-secondary-label); transition: transform 0.4s var(--spring-easing); }
+        .ios-select-container.open .ios-arrow { transform: rotate(90deg); }
+
+        .ios-select-options { max-height: 0; overflow: hidden; transition: max-height 0.4s var(--spring-easing); }
+        .ios-select-container.open .ios-select-options { max-height: 250px; }
+
+        .ios-option-item {
+            padding: 10px 16px;
+            font-size: 0.85rem;
+            border-top: 1px solid var(--ios-border);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+        }
+        .ios-option-item.selected { color: var(--ios-primary); }
+
+        .input-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 16px;
+            border-top: 1px solid var(--ios-border);
+            font-size: 0.85rem;
+        }
+
+        .stepper-box {
+            display: flex;
+            align-items: center;
+            background: rgba(0,0,0,0.04);
+            border: 1px solid var(--ios-border);
+            border-radius: 10px;
+            padding: 2px 4px;
+        }
+        @media (prefers-color-scheme: dark) { .stepper-box { background: rgba(255,255,255,0.06); } }
+
+        .stepper-btn {
+            background: none; border: none;
+            color: var(--ios-primary);
+            font-size: 1.1rem;
+            width: 28px; height: 28px;
+            cursor: pointer;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .stepper-btn:active { opacity: 0.5; }
+
+        .ios-input {
+            background: transparent;
+            border: none;
+            color: var(--ios-label);
+            text-align: center;
+            font-size: 0.9rem;
+            width: 55px;
+            outline: none;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .ios-btn {
+            width: 100%; background: var(--ios-primary); color: #ffffff;
+            border: none; padding: 14px; border-radius: 16px;
+            font-size: 0.95rem; cursor: pointer;
+            transition: all 0.4s var(--spring-easing);
+            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.15);
+            display: flex; justify-content: center; align-items: center; gap: 8px;
+        }
+        .ios-btn:active { transform: scale(0.97); opacity: 0.85; }
+        .ios-btn.secondary { background: rgba(0,0,0,0.04); color: var(--ios-label); box-shadow: none; }
+        @media (prefers-color-scheme: dark) { .ios-btn.secondary { background: rgba(255,255,255,0.06); } }
+        .ios-btn.warning { background: var(--ios-warning); color: #fff; }
+        .ios-btn.danger { background: var(--ios-error); color: #fff; }
+
+        .hud-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; font-size: 0.85rem; }
+        .hud-tag { background: rgba(0,0,0,0.04); padding: 4px 10px; border-radius: 20px; }
+        @media (prefers-color-scheme: dark) { .hud-tag { background: rgba(255,255,255,0.06); } }
+
+        .display-board {
+            background: rgba(0,0,0,0.02);
+            border: 1px solid var(--ios-border);
+            border-radius: 24px;
+            padding: 24px 16px;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        @media (prefers-color-scheme: dark) { .display-board { background: rgba(255,255,255,0.02); } }
+
+        .time-val { font-size: 3.2rem; font-variant-numeric: tabular-nums; letter-spacing: -1px; margin: 8px 0; }
+        .status-msg { font-size: 0.9rem; color: var(--ios-secondary-label); min-height: 1.2em; }
+        .key-hint { font-size: 0.75rem; color: var(--ios-secondary-label); margin-top: 6px; }
+
+        .action-group { display: flex; flex-direction: column; gap: 8px; }
+    </style>
+</head>
+<body>
+
+<div class="app-window" id="appWindow">
+
+    <div id="menuScreen" class="screen active">
+        <header>
+            <h1>TIME MATCH PRO</h1>
+            <p>時間極限挑戰模組</p>
+        </header>
+
+        <div class="menu-options">
+            <div class="ios-select-container" id="containerMode">
+                <div class="ios-select-header" onclick="toggleSelect('containerMode')">
+                    <label>模式</label>
+                    <div class="ios-select-value"><span id="valMode">壓線挑戰</span><span class="ios-arrow">❯</span></div>
+                </div>
+                <div class="ios-select-options">
+                    <div class="ios-option-item selected" data-value="LIMIT" onclick="selectOption('Mode', this)">壓線挑戰 (極限靠近0s)</div>
+                    <div class="ios-option-item" data-value="TARGET" onclick="selectOption('Mode', this)">指定秒數挑戰</div>
+                    <div class="ios-option-item" data-value="ACCUMULATE" onclick="selectOption('Mode', this)">雙擊接力</div>
+                </div>
+            </div>
+
+            <div class="ios-select-container">
+                <div class="input-row" id="rowTargetSec" style="display:none;">
+                    <label id="lblTargetSec">指定秒數</label>
+                    <div class="stepper-box">
+                        <button class="stepper-btn" onclick="stepVal('targetSec', -0.5)">-</button>
+                        <input type="number" id="targetSec" class="ios-input" value="5.00" step="0.1">
+                        <button class="stepper-btn" onclick="stepVal('targetSec', 0.5)">+</button>
+                    </div>
+                </div>
+
+                <div id="targetConfig" style="display:none;">
+                    <div class="ios-select-header" onclick="toggleExactRule()">
+                        <label>判定規則</label>
+                        <div class="ios-select-value"><span id="exactRuleText">完全準確 (不可有誤差)</span></div>
+                    </div>
+                    <div class="ios-select-header" onclick="toggleAllowTie()">
+                        <label>同秒數排行規則</label>
+                        <div class="ios-select-value"><span id="allowTieText">比對按下次數 (較少者優先)</span></div>
+                    </div>
+                </div>
+
+                <div class="input-row">
+                    <label>玩家人數</label>
+                    <div class="stepper-box">
+                        <button class="stepper-btn" onclick="stepVal('totalPlayers', -1)">-</button>
+                        <input type="number" id="totalPlayers" class="ios-input" value="2" min="1">
+                        <button class="stepper-btn" onclick="stepVal('totalPlayers', 1)">+</button>
+                    </div>
+                </div>
+
+                <div class="input-row">
+                    <label>單人次數</label>
+                    <div class="stepper-box">
+                        <button class="stepper-btn" onclick="stepVal('maxAttempts', -1)">-</button>
+                        <input type="number" id="maxAttempts" class="ios-input" value="1" min="1">
+                        <button class="stepper-btn" onclick="stepVal('maxAttempts', 1)">+</button>
+                    </div>
+                </div>
+
+                <div class="input-row">
+                    <label>觸發熱鍵</label>
+                    <input type="text" id="triggerKey" class="ios-input" value="Space" style="width:70px; text-align:right; color:var(--ios-primary);" onclick="listenKey(this)" readonly>
+                </div>
+            </div>
+        </div>
+
+        <button class="ios-btn" onclick="startGame()">啟動測試面板</button>
+    </div>
+
+    <div id="gameScreen" class="screen">
+        <div class="hud-bar">
+            <span id="hudPlayer" class="hud-tag">P1</span>
+            <span id="hudTarget" class="hud-tag" style="color:var(--ios-primary); font-weight:bold;">目標: --</span>
+            <span id="hudAttempts" class="hud-tag">1/1</span>
+        </div>
+
+        <div class="display-board">
+            <div class="status-msg" id="statusText">READY</div>
+            <div class="time-val" id="timeDisplay">0.000</div>
+            <div class="key-hint" id="keyHint">按 [Space] 觸發</div>
+        </div>
+
+        <div class="action-group">
+            <button id="mainBtn" class="ios-btn" onclick="handleInput()">觸發</button>
+            
+            <div id="subControls" style="display: none; flex-direction: column; gap: 8px;">
+                <button id="retryBtn" class="ios-btn secondary" onclick="retryRound()">再次嘗試</button>
+                <button class="ios-btn warning" id="nextPassBtn" onclick="passPlayer()">交接給下一位</button>
+            </div>
+            
+            <button class="ios-btn danger" style="margin-top: 4px;" onclick="resetGameSession()">重新開局 (認輸 / 重置)</button>
+            <button class="ios-btn secondary" onclick="exitGame()">返回選單</button>
+        </div>
+    </div>
+
+</div>
+
+<div class="leaderboard-panel" id="leaderboardPanel">
+    <div class="lb-header">
+        <span>🏆 排行榜</span>
+        <span style="font-size:0.75rem; color:var(--ios-secondary-label);" id="lbModeTag">MODE</span>
+    </div>
+    <div class="lb-list" id="lbList"></div>
+</div>
+
+<script>
+    let mode = 'LIMIT';
+    let targetSec = 5.00;
+    let exactRule = true; // true: 必須完全一致, false: 計算差值
+    let allowTieByAttempts = true; // 平手時比對按下次數
+    let totalPlayers = 2;
+    let maxAttempts = 1;
+    let triggerKey = 'Space';
+
+    let currentPlayer = 1;
+    let attemptsLeft = 1;
+    let attemptsUsedInTurn = 0;
+    let accumulatedTime = 0;
+    let records = {}; 
+    let isGameOver = false;
+
+    let state = 'IDLE'; 
+    let startTime = 0;
+    let timerInterval = null;
+
+    function stepVal(id, delta) {
+        const input = document.getElementById(id);
+        let val = parseFloat(input.value) || 0;
+        val = Math.max((input.min !== "" ? parseFloat(input.min) : -Infinity), val + delta);
+        input.value = Number.isInteger(delta) ? val : val.toFixed(2);
+    }
+
+    function toggleSelect(id) {
+        const el = document.getElementById(id);
+        const open = el.classList.contains('open');
+        document.querySelectorAll('.ios-select-container').forEach(c => c.classList.remove('open'));
+        if (!open) el.classList.add('open');
+    }
+
+    function selectOption(type, el) {
+        const container = document.getElementById(`container${type}`);
+        container.querySelectorAll('.ios-option-item').forEach(i => i.classList.remove('selected'));
+        el.classList.add('selected');
+        
+        const val = el.getAttribute('data-value');
+        document.getElementById(`val${type}`).innerText = el.innerText.split(' ')[0];
+        
+        if (type === 'Mode') {
+            mode = val;
+            const rowTargetSec = document.getElementById('rowTargetSec');
+            const targetConfig = document.getElementById('targetConfig');
+            const lblTargetSec = document.getElementById('lblTargetSec');
+
+            if (mode === 'TARGET') {
+                rowTargetSec.style.display = 'flex';
+                targetConfig.style.display = 'block';
+                lblTargetSec.innerText = '指定目標秒數';
+                document.getElementById('targetSec').value = "5.00";
+            } else if (mode === 'ACCUMULATE') {
+                rowTargetSec.style.display = 'flex';
+                targetConfig.style.display = 'none';
+                lblTargetSec.innerText = '上限秒數 (超過算輸)';
+                document.getElementById('targetSec').value = "10.00";
+            } else { // LIMIT (壓線挑戰)
+                rowTargetSec.style.display = 'none';
+                targetConfig.style.display = 'none';
+            }
+        }
+        container.classList.remove('open');
+    }
+
+    function toggleExactRule() {
+        exactRule = !exactRule;
+        document.getElementById('exactRuleText').innerText = exactRule ? '完全準確 (不可有誤差)' : '計算差值 (越近越好)';
+    }
+
+    function toggleAllowTie() {
+        allowTieByAttempts = !allowTieByAttempts;
+        document.getElementById('allowTieText').innerText = allowTieByAttempts ? '比對按下次數 (較少者優先)' : '直接判定平手';
+    }
+
+    function listenKey(input) {
+        input.value = "按下...";
+        const handler = (e) => {
+            e.preventDefault();
+            triggerKey = e.code === 'Space' ? 'Space' : e.key;
+            input.value = triggerKey;
+            window.removeEventListener('keydown', handler);
+        };
+        window.addEventListener('keydown', handler);
+    }
+
+    function switchScreen(from, to) {
+        from.style.opacity = '0';
+        from.style.transform = 'translateY(-20px)';
+        setTimeout(() => {
+            from.classList.remove('active');
+            to.classList.add('active');
+            setTimeout(() => {
+                to.style.opacity = '1';
+                to.style.transform = 'translateY(0)';
+            }, 50);
+        }, 400);
+    }
+
+    function startGame() {
+        targetSec = parseFloat(document.getElementById('targetSec').value) || 5.00;
+        totalPlayers = parseInt(document.getElementById('totalPlayers').value) || 1;
+        maxAttempts = parseInt(document.getElementById('maxAttempts').value) || 1;
+
+        resetGameSession();
+
+        document.getElementById('keyHint').innerText = `按 [${triggerKey}] 觸發`;
+        
+        // 設定 HUD 上的目標文字顯示
+        const hudTarget = document.getElementById('hudTarget');
+        if (mode === 'LIMIT') {
+            document.getElementById('lbModeTag').innerText = '壓線挑戰';
+            hudTarget.innerText = '目標: 極限0s';
+        } else if (mode === 'TARGET') {
+            document.getElementById('lbModeTag').innerText = '指定秒數';
+            hudTarget.innerText = `目標: ${targetSec.toFixed(2)}s`;
+        } else {
+            document.getElementById('lbModeTag').innerText = '雙擊接力';
+            hudTarget.innerText = `上限: ${targetSec.toFixed(2)}s`;
+        }
+
+        document.getElementById('leaderboardPanel').classList.add('active');
+        switchScreen(document.getElementById('menuScreen'), document.getElementById('gameScreen'));
+    }
+
+    function resetGameSession() {
+        clearInterval(timerInterval);
+        currentPlayer = 1;
+        accumulatedTime = 0;
+        isGameOver = false;
+        records = {};
+        updateLeaderboard();
+        resetTurn();
+    }
+
+    function exitGame() {
+        clearInterval(timerInterval);
+        document.getElementById('leaderboardPanel').classList.remove('active');
+        switchScreen(document.getElementById('gameScreen'), document.getElementById('menuScreen'));
+    }
+
+    function resetTurn() {
+        attemptsLeft = maxAttempts;
+        attemptsUsedInTurn = 0;
+        resetRound();
+    }
+
+    function resetRound() {
+        if (isGameOver) return;
+        state = 'IDLE';
+        clearInterval(timerInterval);
+        
+        const displayVal = mode === 'ACCUMULATE' ? accumulatedTime : 0;
+        document.getElementById('timeDisplay').innerText = displayVal.toFixed(3);
+        document.getElementById('statusText').innerText = mode === 'ACCUMULATE' && accumulatedTime > 0 ? `目前累計: ${accumulatedTime.toFixed(3)}s` : 'READY';
+        document.getElementById('statusText').style.color = 'var(--ios-secondary-label)';
+        
+        document.getElementById('mainBtn').style.display = 'block';
+        document.getElementById('mainBtn').innerText = '開始';
+        document.getElementById('subControls').style.display = 'none';
+
+        updateHUD();
+    }
+
+    function updateHUD() {
+        document.getElementById('hudPlayer').innerText = `P${currentPlayer}`;
+        document.getElementById('hudAttempts').innerText = `${attemptsLeft}/${maxAttempts}`;
+    }
+
+    function handleInput() {
+        if (isGameOver) return;
+
+        if (state === 'IDLE') {
+            state = 'RUNNING';
+            startTime = performance.now();
+            document.getElementById('mainBtn').innerText = '停止';
+            document.getElementById('statusText').innerText = 'RUNNING...';
+            
+            const base = mode === 'ACCUMULATE' ? accumulatedTime : 0;
+            timerInterval = setInterval(() => {
+                const current = base + ((performance.now() - startTime) / 1000);
+                document.getElementById('timeDisplay').innerText = current.toFixed(3);
+            }, 10);
+
+        } else if (state === 'RUNNING') {
+            clearInterval(timerInterval);
+            state = 'FINISHED';
+            
+            const elapsed = (performance.now() - startTime) / 1000;
+            const finalTime = (mode === 'ACCUMULATE' ? accumulatedTime : 0) + elapsed;
+            
+            document.getElementById('timeDisplay').innerText = finalTime.toFixed(3);
+            attemptsLeft--;
+            attemptsUsedInTurn++;
+            updateHUD();
+
+            evaluate(finalTime, elapsed);
+
+            document.getElementById('mainBtn').style.display = 'none';
+            document.getElementById('subControls').style.display = 'flex';
+            
+            const retryBtn = document.getElementById('retryBtn');
+            if (attemptsLeft <= 0 || isGameOver) {
+                retryBtn.style.opacity = '0.4';
+                retryBtn.onclick = null;
+            } else {
+                retryBtn.style.opacity = '1';
+                retryBtn.onclick = retryRound;
+            }
+        }
+    }
+
+    function evaluate(score, delta) {
+        const status = document.getElementById('statusText');
+        const pKey = `P${currentPlayer}`;
+
+        if (mode === 'LIMIT') {
+            // 壓線挑戰：直接計算與 0 秒的差距 (絕對值)
+            const diff = Math.abs(score);
+            status.innerText = `按到: ${score.toFixed(3)}s (距 0s 差 ${diff.toFixed(3)}s)`;
+            status.style.color = 'var(--ios-primary)';
+
+            if (!records[pKey] || diff < records[pKey].diff) {
+                records[pKey] = { diff: diff, raw: score, display: `${score.toFixed(3)}s (差${diff.toFixed(3)}s)`, attempts: attemptsUsedInTurn };
+            }
+
+            if (currentPlayer >= totalPlayers && attemptsLeft <= 0) {
+                isGameOver = true;
+                status.innerText = '所有玩家挑戰結束！';
+            }
+
+        } else if (mode === 'TARGET') {
+            // 指定秒數挑戰
+            const diff = Math.abs(score - targetSec);
+            const isHitExact = score.toFixed(2) === targetSec.toFixed(2);
+
+            if (exactRule) {
+                if (isHitExact) {
+                    status.innerText = `成功命中！(${score.toFixed(3)}s)`;
+                    status.style.color = 'var(--ios-success)';
+                    if (!records[pKey] || !records[pKey].isSuccess) {
+                        records[pKey] = { diff: diff, isSuccess: true, display: `${score.toFixed(3)}s (成功)`, attempts: attemptsUsedInTurn };
+                    }
+                } else {
+                    status.innerText = `未命中 (${score.toFixed(3)}s ≠ ${targetSec.toFixed(2)}s)`;
+                    status.style.color = 'var(--ios-error)';
+                    if (!records[pKey]) {
+                        records[pKey] = { diff: diff, isSuccess: false, display: `${score.toFixed(3)}s (失敗)`, attempts: attemptsUsedInTurn };
+                    }
+                }
+            } else {
+                status.innerText = `與目標差 ${diff.toFixed(3)}s`;
+                status.style.color = 'var(--ios-primary)';
+                if (!records[pKey] || diff < records[pKey].diff) {
+                    records[pKey] = { diff: diff, isSuccess: true, display: `差 ${diff.toFixed(3)}s`, attempts: attemptsUsedInTurn };
+                }
+            }
+
+            if (currentPlayer >= totalPlayers && attemptsLeft <= 0) {
+                isGameOver = true;
+                status.innerText = '所有玩家挑戰結束！';
+            }
+
+        } else if (mode === 'ACCUMULATE') {
+            // 雙擊接力
+            accumulatedTime = score;
+            if (score > targetSec) {
+                status.innerText = `爆掉！超過上限 (${score.toFixed(3)}s > ${targetSec}s)`;
+                status.style.color = 'var(--ios-error)';
+                isGameOver = true;
+            } else {
+                status.innerText = `累計到 ${score.toFixed(3)}s (+${delta.toFixed(3)}s)`;
+                status.style.color = 'var(--ios-primary)';
+                
+                if (!records[pKey] || score > records[pKey].val) {
+                    records[pKey] = { val: score, display: `${score.toFixed(3)}s`, attempts: attemptsUsedInTurn };
+                }
+            }
+        }
+
+        updateLeaderboard();
+    }
+
+    function updateLeaderboard() {
+        const listEl = document.getElementById('lbList');
+        listEl.innerHTML = '';
+
+        let items = Object.keys(records).map(k => ({ player: k, ...records[k] }));
+
+        if (mode === 'LIMIT') {
+            // 壓線挑戰：距 0s 的差值越小越好
+            items.sort((a, b) => a.diff - b.diff);
+
+        } else if (mode === 'TARGET') {
+            // 指定秒數挑戰：
+            items.sort((a, b) => {
+                if (exactRule) {
+                    if (a.isSuccess && !b.isSuccess) return -1;
+                    if (!a.isSuccess && b.isSuccess) return 1;
+                }
+                if (a.diff !== b.diff) return a.diff - b.diff;
+                // 平手時按下次數少的優先
+                if (allowTieByAttempts) return a.attempts - b.attempts;
+                return 0;
+            });
+
+        } else {
+            // 雙擊接力：秒數高的優先
+            items.sort((a, b) => b.val - a.val);
+        }
+
+        items.forEach((item, index) => {
+            const row = document.createElement('div');
+            row.className = 'lb-item';
+            row.innerHTML = `
+                <span class="lb-rank ${index === 0 ? 'top1' : ''}">#${index + 1}</span>
+                <span class="lb-player">${item.player}</span>
+                <span class="lb-score">${item.display}</span>
+            `;
+            listEl.appendChild(row);
+        });
+
+        if (items.length === 0) {
+            listEl.innerHTML = `<div style="text-align:center; font-size:0.8rem; color:var(--ios-secondary-label); padding:10px;">尚無紀錄</div>`;
+        }
+    }
+
+    function retryRound() {
+        if (attemptsLeft > 0 && !isGameOver) resetRound();
+    }
+
+    function passPlayer() {
+        if (isGameOver) return;
+        currentPlayer = (currentPlayer % totalPlayers) + 1;
+        resetTurn();
+    }
+
+    window.addEventListener('keydown', (e) => {
+        if (document.getElementById('gameScreen').classList.contains('active')) {
+            const isTargetKey = triggerKey === 'Space' ? e.code === 'Space' : e.key.toLowerCase() === triggerKey.toLowerCase();
+            if (isTargetKey) {
+                e.preventDefault();
+                if (state === 'IDLE' || state === 'RUNNING') {
+                    handleInput();
+                }
+            }
+        }
+    });
+</script>
+</body>
+</html>
