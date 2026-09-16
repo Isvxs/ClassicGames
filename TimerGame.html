@@ -61,6 +61,14 @@
             max-width: 420px;
             position: relative;
             z-index: 2;
+            transition: transform 0.8s var(--spring-easing), opacity 0.6s ease;
+        }
+
+        /* 主主體往右滑出淡出類別 */
+        .app-window.slide-out-right {
+            transform: translateX(120px);
+            opacity: 0;
+            pointer-events: none;
         }
 
         .leaderboard-panel {
@@ -77,15 +85,31 @@
             padding: 20px;
             box-shadow: 0 14px 40px rgba(0,0,0,0.06);
             display: none;
-            z-index: 1;
+            z-index: 10;
+            transition: all 0.8s var(--spring-easing);
         }
         .leaderboard-panel.active { display: block; }
+
+        /* 排行榜移動至中央狀態 */
+        .leaderboard-panel.centered {
+            left: 50%;
+            transform: translate(-50%, -50%) scale(1.05);
+            width: 340px;
+            z-index: 20;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+        }
 
         @media (max-width: 980px) {
             .leaderboard-panel {
                 position: static;
                 transform: none;
                 margin-top: 20px;
+                width: 100%;
+                max-width: 420px;
+            }
+            .leaderboard-panel.centered {
+                position: static;
+                transform: none;
                 width: 100%;
                 max-width: 420px;
             }
@@ -126,6 +150,13 @@
         .lb-rank.top1 { color: var(--ios-warning); }
         .lb-player { flex-grow: 1; text-align: left; }
         .lb-score { font-variant-numeric: tabular-nums; font-weight: bold; color: var(--ios-primary); }
+
+        .lb-actions {
+            margin-top: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
 
         .screen {
             width: 100%;
@@ -206,8 +237,15 @@
             border: 1px solid var(--ios-border);
             border-radius: 10px;
             padding: 2px 4px;
+            transition: box-shadow 0.7s ease, border-color 0.7s ease;
         }
         @media (prefers-color-scheme: dark) { .stepper-box { background: rgba(255,255,255,0.06); } }
+
+        .stepper-box.highlight {
+            border-color: rgba(255, 255, 255, 0.9) !important;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.85) !important;
+            transition: none !important;
+        }
 
         .stepper-btn {
             background: none; border: none;
@@ -224,8 +262,8 @@
             border: none;
             color: var(--ios-label);
             text-align: center;
-            font-size: 0.9rem;
-            width: 55px;
+            font-size: 0.85rem;
+            width: 65px;
             outline: none;
             font-variant-numeric: tabular-nums;
         }
@@ -258,7 +296,7 @@
         }
         @media (prefers-color-scheme: dark) { .display-board { background: rgba(255,255,255,0.02); } }
 
-        .time-val { font-size: 3.2rem; font-variant-numeric: tabular-nums; letter-spacing: -1px; margin: 8px 0; }
+        .time-val { font-size: 2.8rem; font-variant-numeric: tabular-nums; letter-spacing: -1px; margin: 8px 0; word-break: break-all; }
         .status-msg { font-size: 0.9rem; color: var(--ios-secondary-label); min-height: 1.2em; }
         .key-hint { font-size: 0.75rem; color: var(--ios-secondary-label); margin-top: 6px; }
 
@@ -293,12 +331,20 @@
                     <label id="lblTargetSec">指定秒數</label>
                     <div class="stepper-box">
                         <button class="stepper-btn" onclick="stepVal('targetSec', -0.5)">-</button>
-                        <input type="number" id="targetSec" class="ios-input" value="5.00" step="0.1">
+                        <input type="number" id="targetSec" class="ios-input" value="5.000" step="0.1" min="0">
                         <button class="stepper-btn" onclick="stepVal('targetSec', 0.5)">+</button>
                     </div>
                 </div>
 
                 <div id="targetConfig" style="display:none;">
+                    <div class="input-row" id="rowTolerance">
+                        <label>允許誤差範圍 (±秒)</label>
+                        <div class="stepper-box">
+                            <button class="stepper-btn" onclick="stepVal('toleranceSec', -0.05)">-</button>
+                            <input type="number" id="toleranceSec" class="ios-input" value="0.100" step="0.01" min="0">
+                            <button class="stepper-btn" onclick="stepVal('toleranceSec', 0.05)">+</button>
+                        </div>
+                    </div>
                     <div class="ios-select-header" onclick="toggleExactRule()">
                         <label>判定規則</label>
                         <div class="ios-select-value"><span id="exactRuleText">完全準確 (不可有誤差)</span></div>
@@ -371,13 +417,19 @@
         <span style="font-size:0.75rem; color:var(--ios-secondary-label);" id="lbModeTag">MODE</span>
     </div>
     <div class="lb-list" id="lbList"></div>
+    
+    <div class="lb-actions" id="lbActions" style="display:none;">
+        <button class="ios-btn" onclick="resetGameSession()">重新一局</button>
+        <button class="ios-btn secondary" onclick="exitGame()">返回主選單</button>
+    </div>
 </div>
 
 <script>
     let mode = 'LIMIT';
-    let targetSec = 5.00;
-    let exactRule = true; // true: 必須完全一致, false: 計算差值
-    let allowTieByAttempts = true; // 平手時比對按下次數
+    let targetSec = 5.000;
+    let toleranceSec = 0.100;
+    let exactRule = true;
+    let allowTieByAttempts = true;
     let totalPlayers = 2;
     let maxAttempts = 1;
     let triggerKey = 'Space';
@@ -393,11 +445,44 @@
     let startTime = 0;
     let timerInterval = null;
 
+    function triggerHighlight(inputElement) {
+        const box = inputElement.closest('.stepper-box');
+        if (!box) return;
+        box.classList.remove('highlight');
+        void box.offsetWidth; 
+        box.classList.add('highlight');
+        setTimeout(() => box.classList.remove('highlight'), 50);
+    }
+
+    document.querySelectorAll('.ios-input[type="number"]').forEach(input => {
+        const confirmValue = () => {
+            let val = parseFloat(input.value);
+            const minVal = input.min !== "" ? parseFloat(input.min) : 0;
+            if (isNaN(val) || val < minVal) {
+                val = minVal;
+            }
+            // 根據類型補全 3 位小數
+            input.value = (input.id === 'totalPlayers' || input.id === 'maxAttempts') ? val : val.toFixed(3);
+            triggerHighlight(input);
+        };
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                confirmValue();
+                input.blur();
+            }
+        });
+        input.addEventListener('blur', confirmValue);
+    });
+
     function stepVal(id, delta) {
         const input = document.getElementById(id);
         let val = parseFloat(input.value) || 0;
-        val = Math.max((input.min !== "" ? parseFloat(input.min) : -Infinity), val + delta);
-        input.value = Number.isInteger(delta) ? val : val.toFixed(2);
+        const minVal = input.min !== "" ? parseFloat(input.min) : 0;
+        
+        val = Math.max(minVal, val + delta);
+        input.value = (id === 'totalPlayers' || id === 'maxAttempts') ? val : val.toFixed(3);
+        triggerHighlight(input);
     }
 
     function toggleSelect(id) {
@@ -425,13 +510,13 @@
                 rowTargetSec.style.display = 'flex';
                 targetConfig.style.display = 'block';
                 lblTargetSec.innerText = '指定目標秒數';
-                document.getElementById('targetSec').value = "5.00";
+                document.getElementById('targetSec').value = "5.000";
             } else if (mode === 'ACCUMULATE') {
                 rowTargetSec.style.display = 'flex';
                 targetConfig.style.display = 'none';
                 lblTargetSec.innerText = '上限秒數 (超過算輸)';
-                document.getElementById('targetSec').value = "10.00";
-            } else { // LIMIT (壓線挑戰)
+                document.getElementById('targetSec').value = "10.000";
+            } else {
                 rowTargetSec.style.display = 'none';
                 targetConfig.style.display = 'none';
             }
@@ -441,7 +526,14 @@
 
     function toggleExactRule() {
         exactRule = !exactRule;
-        document.getElementById('exactRuleText').innerText = exactRule ? '完全準確 (不可有誤差)' : '計算差值 (越近越好)';
+        const rowTol = document.getElementById('rowTolerance');
+        if (exactRule) {
+            document.getElementById('exactRuleText').innerText = '完全準確 (不可有誤差)';
+            rowTol.style.display = 'none';
+        } else {
+            document.getElementById('exactRuleText').innerText = '允許誤差範圍';
+            rowTol.style.display = 'flex';
+        }
     }
 
     function toggleAllowTie() {
@@ -474,28 +566,34 @@
     }
 
     function startGame() {
-        targetSec = parseFloat(document.getElementById('targetSec').value) || 5.00;
-        totalPlayers = parseInt(document.getElementById('totalPlayers').value) || 1;
-        maxAttempts = parseInt(document.getElementById('maxAttempts').value) || 1;
+        targetSec = Math.max(0, parseFloat(document.getElementById('targetSec').value) || 0);
+        toleranceSec = Math.max(0, parseFloat(document.getElementById('toleranceSec').value) || 0);
+        totalPlayers = Math.max(1, parseInt(document.getElementById('totalPlayers').value) || 1);
+        maxAttempts = Math.max(1, parseInt(document.getElementById('maxAttempts').value) || 1);
 
         resetGameSession();
 
         document.getElementById('keyHint').innerText = `按 [${triggerKey}] 觸發`;
         
-        // 設定 HUD 上的目標文字顯示
         const hudTarget = document.getElementById('hudTarget');
         if (mode === 'LIMIT') {
             document.getElementById('lbModeTag').innerText = '壓線挑戰';
             hudTarget.innerText = '目標: 極限0s';
         } else if (mode === 'TARGET') {
             document.getElementById('lbModeTag').innerText = '指定秒數';
-            hudTarget.innerText = `目標: ${targetSec.toFixed(2)}s`;
+            hudTarget.innerText = exactRule 
+                ? `目標: ${targetSec.toFixed(3)}s` 
+                : `目標: ${targetSec.toFixed(3)}s (±${toleranceSec.toFixed(3)}s)`;
         } else {
             document.getElementById('lbModeTag').innerText = '雙擊接力';
-            hudTarget.innerText = `上限: ${targetSec.toFixed(2)}s`;
+            hudTarget.innerText = `上限: ${targetSec.toFixed(3)}s`;
         }
 
-        document.getElementById('leaderboardPanel').classList.add('active');
+        const lb = document.getElementById('leaderboardPanel');
+        lb.classList.remove('centered');
+        lb.classList.add('active');
+        document.getElementById('lbActions').style.display = 'none';
+
         switchScreen(document.getElementById('menuScreen'), document.getElementById('gameScreen'));
     }
 
@@ -505,13 +603,27 @@
         accumulatedTime = 0;
         isGameOver = false;
         records = {};
+        
+        const appWin = document.getElementById('appWindow');
+        const lb = document.getElementById('leaderboardPanel');
+        
+        appWin.classList.remove('slide-out-right');
+        lb.classList.remove('centered');
+        document.getElementById('lbActions').style.display = 'none';
+
         updateLeaderboard();
         resetTurn();
     }
 
     function exitGame() {
         clearInterval(timerInterval);
-        document.getElementById('leaderboardPanel').classList.remove('active');
+        const appWin = document.getElementById('appWindow');
+        const lb = document.getElementById('leaderboardPanel');
+        
+        appWin.classList.remove('slide-out-right');
+        lb.classList.remove('centered', 'active');
+        document.getElementById('lbActions').style.display = 'none';
+
         switchScreen(document.getElementById('gameScreen'), document.getElementById('menuScreen'));
     }
 
@@ -565,7 +677,6 @@
             const elapsed = (performance.now() - startTime) / 1000;
             const finalTime = (mode === 'ACCUMULATE' ? accumulatedTime : 0) + elapsed;
             
-            document.getElementById('timeDisplay').innerText = finalTime.toFixed(3);
             attemptsLeft--;
             attemptsUsedInTurn++;
             updateHUD();
@@ -586,13 +697,27 @@
         }
     }
 
+    function triggerEndGameAnimation() {
+        isGameOver = true;
+        document.getElementById('statusText').innerText = '所有玩家挑戰結束！';
+
+        // 啟動淡出與中央位移動態
+        setTimeout(() => {
+            document.getElementById('appWindow').classList.add('slide-out-right');
+            const lb = document.getElementById('leaderboardPanel');
+            lb.classList.add('centered');
+            document.getElementById('lbActions').style.display = 'flex';
+        }, 300);
+    }
+
     function evaluate(score, delta) {
         const status = document.getElementById('statusText');
         const pKey = `P${currentPlayer}`;
+        const displayEl = document.getElementById('timeDisplay');
 
         if (mode === 'LIMIT') {
-            // 壓線挑戰：直接計算與 0 秒的差距 (絕對值)
             const diff = Math.abs(score);
+            displayEl.innerText = score.toFixed(3);
             status.innerText = `按到: ${score.toFixed(3)}s (距 0s 差 ${diff.toFixed(3)}s)`;
             status.style.color = 'var(--ios-primary)';
 
@@ -601,49 +726,67 @@
             }
 
             if (currentPlayer >= totalPlayers && attemptsLeft <= 0) {
-                isGameOver = true;
-                status.innerText = '所有玩家挑戰結束！';
+                triggerEndGameAnimation();
             }
 
         } else if (mode === 'TARGET') {
-            // 指定秒數挑戰
             const diff = Math.abs(score - targetSec);
-            const isHitExact = score.toFixed(2) === targetSec.toFixed(2);
 
             if (exactRule) {
+                const isHitExact = score.toFixed(3) === targetSec.toFixed(3);
                 if (isHitExact) {
-                    status.innerText = `成功命中！(${score.toFixed(3)}s)`;
+                    // 估算延伸至 5 位數的預估偏移量 (極高精細度模擬)
+                    const simulatedEst = (score + (Math.random() * 0.00008 - 0.00004)).toFixed(5);
+                    displayEl.innerText = simulatedEst;
+
+                    status.innerText = `🎯 完美命中！(${simulatedEst}s)`;
                     status.style.color = 'var(--ios-success)';
                     if (!records[pKey] || !records[pKey].isSuccess) {
-                        records[pKey] = { diff: diff, isSuccess: true, display: `${score.toFixed(3)}s (成功)`, attempts: attemptsUsedInTurn };
+                        records[pKey] = { diff: diff, isSuccess: true, display: `${simulatedEst}s (成功)`, attempts: attemptsUsedInTurn };
                     }
                 } else {
-                    status.innerText = `未命中 (${score.toFixed(3)}s ≠ ${targetSec.toFixed(2)}s)`;
+                    displayEl.innerText = score.toFixed(3);
+                    status.innerText = `未命中 (${score.toFixed(3)}s ≠ ${targetSec.toFixed(3)}s)`;
                     status.style.color = 'var(--ios-error)';
                     if (!records[pKey]) {
                         records[pKey] = { diff: diff, isSuccess: false, display: `${score.toFixed(3)}s (失敗)`, attempts: attemptsUsedInTurn };
                     }
                 }
             } else {
-                status.innerText = `與目標差 ${diff.toFixed(3)}s`;
-                status.style.color = 'var(--ios-primary)';
-                if (!records[pKey] || diff < records[pKey].diff) {
-                    records[pKey] = { diff: diff, isSuccess: true, display: `差 ${diff.toFixed(3)}s`, attempts: attemptsUsedInTurn };
+                const isWithinTolerance = diff <= toleranceSec;
+                if (isWithinTolerance) {
+                    const simulatedEst = (score + (Math.random() * 0.00008 - 0.00004)).toFixed(5);
+                    displayEl.innerText = simulatedEst;
+                    
+                    status.innerText = `🎯 命中誤差！(${simulatedEst}s ≤ ±${toleranceSec.toFixed(3)}s)`;
+                    status.style.color = 'var(--ios-success)';
+                    
+                    if (!records[pKey] || diff < records[pKey].diff) {
+                        records[pKey] = { diff: diff, isSuccess: isWithinTolerance, display: `${simulatedEst}s (差${diff.toFixed(3)}s)`, attempts: attemptsUsedInTurn };
+                    }
+                } else {
+                    displayEl.innerText = score.toFixed(3);
+                    status.innerText = `超出誤差範圍 (差 ${diff.toFixed(3)}s > ±${toleranceSec.toFixed(3)}s)`;
+                    status.style.color = 'var(--ios-error)';
+                    
+                    if (!records[pKey] || diff < records[pKey].diff) {
+                        records[pKey] = { diff: diff, isSuccess: isWithinTolerance, display: `差 ${diff.toFixed(3)}s`, attempts: attemptsUsedInTurn };
+                    }
                 }
             }
 
             if (currentPlayer >= totalPlayers && attemptsLeft <= 0) {
-                isGameOver = true;
-                status.innerText = '所有玩家挑戰結束！';
+                triggerEndGameAnimation();
             }
 
         } else if (mode === 'ACCUMULATE') {
-            // 雙擊接力
             accumulatedTime = score;
+            displayEl.innerText = score.toFixed(3);
+            
             if (score > targetSec) {
-                status.innerText = `爆掉！超過上限 (${score.toFixed(3)}s > ${targetSec}s)`;
+                status.innerText = `爆掉！超過上限 (${score.toFixed(3)}s > ${targetSec.toFixed(3)}s)`;
                 status.style.color = 'var(--ios-error)';
-                isGameOver = true;
+                triggerEndGameAnimation();
             } else {
                 status.innerText = `累計到 ${score.toFixed(3)}s (+${delta.toFixed(3)}s)`;
                 status.style.color = 'var(--ios-primary)';
@@ -664,24 +807,17 @@
         let items = Object.keys(records).map(k => ({ player: k, ...records[k] }));
 
         if (mode === 'LIMIT') {
-            // 壓線挑戰：距 0s 的差值越小越好
             items.sort((a, b) => a.diff - b.diff);
 
         } else if (mode === 'TARGET') {
-            // 指定秒數挑戰：
             items.sort((a, b) => {
-                if (exactRule) {
-                    if (a.isSuccess && !b.isSuccess) return -1;
-                    if (!a.isSuccess && b.isSuccess) return 1;
-                }
+                if (a.isSuccess !== b.isSuccess) return a.isSuccess ? -1 : 1;
                 if (a.diff !== b.diff) return a.diff - b.diff;
-                // 平手時按下次數少的優先
                 if (allowTieByAttempts) return a.attempts - b.attempts;
                 return 0;
             });
 
         } else {
-            // 雙擊接力：秒數高的優先
             items.sort((a, b) => b.val - a.val);
         }
 
